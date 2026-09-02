@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 财报 · 股票投资工作台</title>
+<style>
+  :root {
+    --bg: #f3f5f9;
+    --card: #ffffff;
+    --line: #e5e9f0;
+    --text: #1c2733;
+    --muted: #6b7a8d;
+    --brand: #16457c;
+    --brand-2: #2f6fb3;
+    --red: #d63a3a;      /* A股：红涨 */
+    --green: #0c9d66;    /* A股：绿跌 */
+    --amber: #d99a1c;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(22, 69, 124, .08), 0 4px 14px rgba(22, 69, 124, .06);
+    --mono: "SF Mono", "Cascadia Code", Consolas, "Microsoft YaHei", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  a { color: var(--brand-2); text-decoration: none; }
+
+  /* ---------- 顶部 ---------- */
+  header {
+    background: linear-gradient(120deg, #0f2f52, #1d4f86);
+    color: #fff;
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .brand { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+  .brand small { font-size: 12px; font-weight: 400; opacity: .75; margin-left: 8px; }
+  header select {
+    margin-left: auto;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    background: rgba(255,255,255,.14);
+    color: #fff;
+    outline: none;
+    cursor: pointer;
+  }
+  header select option { color: #1c2733; background: #fff; }
+  .disclaimer {
+    font-size: 12px;
+    opacity: .8;
+    background: rgba(255,255,255,.1);
+    padding: 5px 10px;
+    border-radius: 20px;
+  }
+  .live-search { display: flex; gap: 8px; align-items: center; }
+  .live-search input {
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 8px;
+    font-size: 13px;
+    width: 260px;
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    outline: none;
+  }
+  .live-search input::placeholder { color: rgba(255,255,255,.6); }
+  .live-search input:focus { border-color: #fff; }
+  .live-search button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--brand);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .live-search button:hover { background: #eaf2fb; }
+  #liveSection { border-left: 4px solid var(--brand-2); }
+  #liveSection h3 .live-refresh { margin-left: auto; cursor: pointer; font-size: 16px; }
+  .live-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .live-cards .card { padding: 12px 14px; }
+  .live-note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .live-err { color: var(--red); }
+  @media (max-width: 860px) { .live-search input { width: 150px; } }
+  .analysis-box { background: #f7fafe; border: 1px solid #dce7f5; border-radius: 10px; padding: 16px 20px; }
+  .analysis-box p { margin: 8px 0; }
+  .analysis-box .verdict { display: inline-block; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+  .verdict.pos { background: #e4f6ec; color: #0c9d66; }
+  .verdict.neu { background: #fff4dd; color: #d99a1c; }
+  .verdict.cau { background: #fde8e8; color: #d63a3a; }
+  .an-list { list-style: none; padding: 0; margin: 6px 0; }
+  .an-list li { padding: 3px 0; font-size: 13px; }
+  .an-strong li::before { content: "✅ "; }
+  .an-risk li::before { content: "⚠️ "; }
+  .an-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 8px; }
+  @media (max-width: 720px) { .an-cols { grid-template-columns: 1fr; } }
+
+  main { max-width: 1280px; margin: 22px auto; padding: 0 20px 60px; }
+  section { margin-bottom: 22px; }
+
+  /* ---------- 概览卡片 ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+  }
+  .card .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .card .value { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+  .card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .up { color: var(--red); }
+  .down { color: var(--green); }
+  .card.highlight { border-color: var(--brand-2); background: linear-gradient(160deg,#f6faff,#eef4fc); }
+  .card.highlight .value { color: var(--brand); }
+  .score-wrap { display: flex; align-items: center; gap: 12px; }
+  .score-ring { width: 52px; height: 52px; flex: none; }
+  .score-wrap .value { font-size: 26px; }
+
+  /* ---------- 主网格 ---------- */
+  .grid-2 { display: grid; grid-template-columns: 7fr 5fr; gap: 18px; align-items: start; }
+  .grid-2b { display: grid; grid-template-columns: 5fr 7fr; gap: 18px; align-items: start; }
+  @media (max-width: 960px) {
+    .grid-2, .grid-2b { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+  }
+  .panel h3 {
+    font-size: 15px;
+    color: var(--brand);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel h3 .hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: auto;
+    cursor: help;
+  }
+
+  /* ---------- 报表 Tab ---------- */
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tabs button {
+    border: 1px solid var(--line);
+    background: #f8fafc;
+    color: var(--muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .tabs button.active {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+  .report-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  table.report { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.report th, table.report td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eef1f6;
+    text-align: right;
+  }
+  table.report th:first-child, table.report td:first-child { text-align: left; }
+  table.report th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  table.report tr.section td {
+    background: #f6f9fc;
+    font-weight: 700;
+    color: var(--brand);
+    border-bottom: 1px solid var(--line);
+  }
+  table.report tr.key td { font-weight: 700; background: #fbfdff; }
+  table.report td.num { font-family: var(--mono); }
+  table.report td.yoy { font-size: 12px; }
+  table.report td.note { color: var(--muted); font-size: 12px; }
+
+  /* ---------- 核心利润 ---------- */
+  .cp-top { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .cp-box { background: #f7fafe; border: 1px solid #dce7f5; border-radius: 10px; padding: 12px 14px; }
+  .cp-box .label { color: var(--muted); font-size: 12px; }
+  .cp-box .value { font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--brand); }
+  .cp-box .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .chart { width: 100%; }
+  .chart-legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .formula {
+    margin-top: 14px;
+    background: #fbf6ec;
+    border-left: 3px solid var(--amber);
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #6b5a2e;
+    border-radius: 0 8px 8px 0;
+  }
+
+  /* ---------- 现金流画像 ---------- */
+  .cf-picture {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px;
+    border-radius: 10px;
+    background: linear-gradient(120deg, #eef6ff, #f8fbff);
+    border: 1px solid #d8e6f7;
+    margin-bottom: 14px;
+  }
+  .cf-icon { font-size: 40px; }
+  .cf-picture .name { font-size: 18px; font-weight: 700; color: var(--brand); }
+  .cf-picture .desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .cf-signs { display: flex; gap: 8px; margin-left: auto; }
+  .cf-signs span {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+
+  /* ---------- 估值 ---------- */
+  .val-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .val-item { background: #f7fafe; border: 1px solid #dce7f5; border-radius: 10px; padding: 10px 12px; text-align: center; }
+  .val-item .label { font-size: 12px; color: var(--muted); }
+  .val-item .value { font-family: var(--mono); font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .val-item.current .value { color: var(--brand); font-size: 24px; }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: 2px;
+  }
+  .badge.low { background: #e4f6ec; color: var(--green); }
+  .badge.ok { background: #fff4dd; color: var(--amber); }
+  .badge.high { background: #fde8e8; color: var(--red); }
+
+  .val-track { position: relative; height: 34px; border-radius: 8px;
+    background: linear-gradient(90deg, #0c9d66 0%, #0c9d66 42%, #7fc9a8 42%, #7fc9a8 58%, #e0c25c 58%, #e0c25c 72%, #d99a1c 72%, #d99a1c 100%, #d63a3a 100%); }
+  .val-track .mark {
+    position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(28,39,51,.35);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .val-track .mark::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -20px;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    transform: translateX(-50%);
+    background: #fff;
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+  }
+  .val-track .price-dot {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px; height: 14px;
+    background: #fff;
+    border: 3px solid var(--brand);
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    z-index: 2;
+  }
+  .val-track .price-dot::after {
+    content: attr(data-price);
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--brand);
+    background: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--brand-2);
+    white-space: nowrap;
+  }
+  .val-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 26px; }
+
+  .params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+  .param label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .param input {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 14px;
+    outline: none;
+    background: #fbfdff;
+  }
+  .param input:focus { border-color: var(--brand-2); }
+  .model-steps {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--muted);
+    background: #f8fafc;
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    line-height: 1.9;
+  }
+  .model-steps b { color: var(--brand); font-family: var(--mono); }
+
+  footer {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  footer .note { background: #fff8e8; border: 1px solid #f0dfae; border-radius: 8px; padding: 12px 16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">AI 财报 · 股票投资工作台 <small>参考 ai财报网 风格</small></div>
+  <div class="live-search">
+    <input id="liveSearch" type="text" placeholder="代码或名称，如 600519 / 贵州茅台" autocomplete="off">
+    <button id="liveBtn" type="button">查询</button>
+  </div>
+  <select id="stockSelect" aria-label="选择股票"></select>
+  <span class="disclaimer">演示财报 + 实时行情（iFinD）· 不构成投资建议</span>
+</header>
+
+<main>
+  <!-- 概览 -->
+  <section class="cards" id="overviewCards"></section>
+
+  <!-- 实时行情 -->
+  <section class="panel" id="liveSection" style="display:none">
+    <h3>实时行情
+      <span class="hint">输入股票代码或名称，回车或点“查询”；数据来自同花顺 iFinD</span>
+      <span class="hint" style="cursor:pointer" id="liveRefresh">🔄 刷新</span></h3>
+    <div class="live-cards" id="liveRows"></div>
+    <div class="live-note" id="liveNote"></div>
+  </section>
+
+  <!-- 三大报表 + 核心利润 -->
+  <section class="grid-2">
+    <div class="panel">
+      <h3>三大财务报表 <span class="hint" title="核心利润 = 营业收入 − 营业成本 − 营业税金及附加 − 四费（销售/管理/研发/财务费用）">单位：亿元</span></h3>
+      <div class="tabs" id="reportTabs">
+        <button data-tab="income" class="active">利润表</button>
+        <button data-tab="balance">资产负债表</button>
+        <button data-tab="cashflow">现金流量表</button>
+      </div>
+      <div class="report-head">
+        <span id="reportPeriod">2024 年报（约）</span>
+        <span>同比：与上一年相比；占比：占营业收入 / 总资产</span>
+      </div>
+      <div id="reportTable"></div>
+    </div>
+
+    <div class="panel">
+      <h3>核心利润分析 <span class="hint" title="核心利润衡量主营业务的真实盈利，排除投资收益、公允价值变动等非经常项">毛利率 × 核心利润率</span></h3>
+      <div class="cp-top">
+        <div class="cp-box">
+          <div class="label">核心利润（亿元）</div>
+          <div class="value" id="cpValue">—</div>
+          <div class="sub" id="cpSub">≈ 营收 − 成本 − 税金 − 四费</div>
+        </div>
+        <div class="cp-box">
+          <div class="label">核心利润率</div>
+          <div class="value" id="cpMargin">—</div>
+          <div class="sub" id="cpMarginSub">核心利润 ÷ 营业收入</div>
+        </div>
+      </div>
+      <div id="cpChart"></div>
+      <div class="chart-legend">
+        <span><span class="legend-dot" style="background:#16457c"></span>核心利润（亿元，柱）</span>
+        <span><span class="legend-dot" style="background:#d99a1c"></span>核心利润率（%，线）</span>
+      </div>
+      <div class="formula">
+        核心利润 = 营业收入 − 营业成本 − 营业税金及附加 − 四费<br>
+        四费 = 销售费用 + 管理费用 + 研发费用 + 财务费用<br>
+        核心利润率 = 核心利润 ÷ 营业收入。数值越高，说明主营业务越“能打”。
+      </div>
+    </div>
+  </section>
+
+  <!-- 现金流画像 + 估值区间 -->
+  <section class="grid-2b">
+    <div class="panel">
+      <h3>现金流画像 <span class="hint" title="按经营 / 投资 / 筹资现金流正负组合分类">经营 · 投资 · 筹资</span></h3>
+      <div id="cfPicture"></div>
+      <table class="report" id="cfTable"></table>
+    </div>
+
+    <div class="panel">
+      <h3>合理估值区间 <span class="hint" title="参考 ai财报网估值模型：预测 3 年后净利润 × 合理市盈率 × 业绩含金量 × 综合评分，再按 3% 折现">估值模型</span></h3>
+      <div id="valSummary"></div>
+      <div id="valTrack"></div>
+      <div class="val-scale">
+        <span>0</span>
+        <span>最佳买入 0.5×</span>
+        <span>可买入 0.7×</span>
+        <span>合理价 1.0×</span>
+        <span>高估 1.2×</span>
+        <span>1.4×</span>
+      </div>
+      <div class="params" id="paramBox"></div>
+      <div class="model-steps" id="modelSteps"></div>
+    </div>
+  </section>
+
+  <!-- 分析与操作参考 -->
+  <section class="panel" id="analysisPanel">
+    <h3>分析与操作参考
+      <span class="hint">基于公开量化数据自动化生成 · 仅供研究参考 · 不构成投资建议</span></h3>
+    <div class="analysis-box" id="analysisBox"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="note">
+    <b>说明：</b>本页面为学习演示工具，内置数据为近似示例（约 2024 年报口径），非实时行情，不构成任何投资建议。
+    估值模型参考 ai财报网公开算法简化实现：三年后净利润 P = 最近净利润 × (1 + 增速 A)³；
+    合理市盈率 D = 0.3 × 历史 PE 中位数 C + 0.7 × A；估值 V = P × D × 含金量 K × 评分加权 S；
+    当前合理估值 V₀ = V ÷ 1.03³；安全边际取合理价一半，0.7× 以下可考虑买入。
+    股市有风险，入市需谨慎。
+  </div>
+</footer>
+
+<script>
+"use strict";
+
+/* ============ 演示数据（近似值，非实时） ============ */
+const STOCKS = {
+  moutai: {
+    name: "贵州茅台", code: "600519", industry: "白酒",
+    price: 1456.00, change: 0.82,
+    marketCap: 18291, pe: 21.2, pb: 8.4, dividendYield: 3.24,
+    score: 92, scoreParts: { "盈利能力": 96, "成长性": 78, "现金流": 94, "财务安全": 99 }, rank: "第 1 名",
+
+    revenue: 1741.44, revenueGrowth: 15.7,
+    cost: 146.81, tax: 243.52,
+    selling: 63.06, admin: 93.21, rd: 7.15, finance: -26.53,
+    netProfit: 862.28, netProfitGrowth: 15.4, eps: 68.63,
+    grossMargin: 91.6,
+
+    balance: [
+      ["货币资金", 1903.2, 8.6, "占总资产 64.8%"],
+      ["交易性金融资产", 1.2, -3.1, "短期理财"],
+      ["应收账款", 1.24, -4.6, "先款后货，极少赊账"],
+      ["存货", 504.9, 19.2, "基酒/成品酒"],
+      ["流动资产合计", 2260.4, 10.2, "占总资产 77.0%"],
+      ["固定资产", 260.5, 7.4, "厂房设备"],
+      ["在建工程", 41.3, 15.8, "扩产项目"],
+      ["无形资产", 75.2, 3.1, "土地/商标"],
+      ["非流动资产合计", 676.1, 6.8, "占总资产 23.0%"],
+      ["总资产", 2936.5, 9.4, "资产规模"],
+      ["短期借款", 0, 0, "无有息负债"],
+      ["应付账款", 125.6, 12.1, "占用上游资金"],
+      ["合同负债", 121.6, -8.2, "预收经销商货款"],
+      ["流动负债合计", 700.3, 6.5, "占总负债 81.0%"],
+      ["长期借款", 0, 0, "无有息负债"],
+      ["负债合计", 864.7, 5.8, "负债结构健康"],
+      ["股东权益", 2071.8, 11.0, "净资产"],
+      ["资产负债率", 29.4, "-1.0", "负债率较低"],
+    ],
+
+    cashflow: {
+      op: 930.3, opYoy: 12.6, inv: -181.2, invYoy: -15.4,
+      fin: -558.6, finYoy: 8.9, capex: 67.4, totalCF: 190.5,
+      netCashRatio: 1.08, fcf: 862.9, salesCash: 1965.4,
+    },
+
+    trends: {
+      years: ["2020", "2021", "2022", "2023", "2024"],
+      revenue: [979.9, 1094.6, 1275.5, 1505.6, 1741.4],
+      coreProfit: [505.2, 620.3, 771.6, 971.4, 1214.2],
+      coreMargin: [51.6, 56.7, 60.5, 64.5, 69.7],
+      netProfit: [466.9, 524.6, 627.2, 747.3, 862.3],
+    },
+
+    valuation: { A: 12, C: 30, R: 1.1, Y1: 92, Y5: 88 },
+  },
+
+  catl: {
+    name: "宁德时代", code: "300750", industry: "动力电池",
+    price: 186.50, change: -1.20,
+    marketCap: 8206, pe: 18.5, pb: 3.8, dividendYield: 1.61,
+    score: 85, scoreParts: { "盈利能力": 82, "成长性": 88, "现金流": 80, "财务安全": 76 }, rank: "第 12 名",
+
+    revenue: 3620.1, revenueGrowth: -9.7,
+    cost: 2725.4, tax: 19.8,
+    selling: 128.4, admin: 142.1, rd: 186.0, finance: 15.9,
+    netProfit: 507.5, netProfitGrowth: 15.0, eps: 11.54,
+    grossMargin: 24.7,
+
+    balance: [
+      ["货币资金", 2650.3, 18.2, "占总资产 38.8%"],
+      ["交易性金融资产", 320.6, 12.4, "理财及衍生品"],
+      ["应收账款", 640.2, 8.9, "下游车企回款"],
+      ["存货", 430.5, -6.2, "库存管理优化"],
+      ["流动资产合计", 5890.6, 11.5, "占总资产 86.2%"],
+      ["固定资产", 950.4, 14.8, "动力电池产线"],
+      ["在建工程", 210.3, 22.6, "扩产基地"],
+      ["无形资产", 120.8, 5.1, "技术专利/土地"],
+      ["非流动资产合计", 940.2, 9.6, "占总资产 13.8%"],
+      ["总资产", 6830.8, 11.2, "资产规模"],
+      ["短期借款", 320.5, -10.3, "短期融资"],
+      ["应付账款", 1380.2, 9.8, "占用上游资金"],
+      ["合同负债", 450.7, 15.2, "预收货款"],
+      ["流动负债合计", 3620.4, 8.6, "占总负债 79.0%"],
+      ["长期借款", 580.3, 12.7, "长期债务"],
+      ["负债合计", 4582.6, 9.2, "有息负债占比中等"],
+      ["股东权益", 2248.2, 15.6, "净资产"],
+      ["资产负债率", 67.1, "-1.2", "负债率偏高但可控"],
+    ],
+
+    cashflow: {
+      op: 970.6, opYoy: 18.9, inv: -430.2, invYoy: -8.6,
+      fin: 186.4, finYoy: 0, capex: 402.1, totalCF: 726.8,
+      netCashRatio: 1.91, fcf: 568.5, salesCash: 3980.2,
+    },
+
+    trends: {
+      years: ["2020", "2021", "2022", "2023", "2024"],
+      revenue: [503.2, 1303.6, 3285.9, 4009.2, 3620.1],
+      coreProfit: [85.3, 162.4, 302.8, 421.5, 403.1],
+      coreMargin: [17.0, 12.5, 9.2, 10.5, 11.1],
+      netProfit: [55.8, 159.3, 307.3, 441.2, 507.5],
+    },
+
+    valuation: { A: 15, C: 28, R: 1.1, Y1: 85, Y5: 80 },
+  },
+
+  midea: {
+    name: "美的集团", code: "000333", industry: "家电制造",
+    price: 78.50, change: 0.35,
+    marketCap: 5416, pe: 14.1, pb: 3.0, dividendYield: 4.25,
+    score: 80, scoreParts: { "盈利能力": 84, "成长性": 70, "现金流": 86, "财务安全": 78 }, rank: "第 26 名",
+
+    revenue: 4090.8, revenueGrowth: 9.4,
+    cost: 2948.6, tax: 18.4,
+    selling: 330.2, admin: 210.6, rd: 148.2, finance: -8.4,
+    netProfit: 385.4, netProfitGrowth: 14.3, eps: 5.60,
+    grossMargin: 27.9,
+
+    balance: [
+      ["货币资金", 1400.5, 10.2, "占总资产 27.5%"],
+      ["交易性金融资产", 280.6, 5.3, "理财投资"],
+      ["应收账款", 380.2, 9.1, "经销商回款"],
+      ["存货", 560.4, 12.8, "家电成品及原材料"],
+      ["流动资产合计", 3300.2, 11.6, "占总资产 64.7%"],
+      ["固定资产", 500.8, 6.9, "生产基地"],
+      ["在建工程", 120.5, 18.4, "智能制造改造"],
+      ["无形资产", 180.3, 4.2, "专利/土地"],
+      ["非流动资产合计", 1800.4, 8.7, "占总资产 35.3%"],
+      ["总资产", 5100.6, 10.5, "资产规模"],
+      ["短期借款", 150.2, -8.2, "短期融资"],
+      ["应付账款", 980.5, 11.3, "占用上游资金"],
+      ["合同负债", 620.3, 9.6, "预收货款"],
+      ["流动负债合计", 2600.7, 10.4, "占总负债 77.6%"],
+      ["长期借款", 320.6, 15.8, "长期债务"],
+      ["负债合计", 3350.2, 10.9, "有息负债占比适中"],
+      ["股东权益", 1750.4, 9.7, "净资产"],
+      ["资产负债率", 65.7, "0.2", "负债率中等"],
+    ],
+
+    cashflow: {
+      op: 665.5, opYoy: 11.3, inv: -180.6, invYoy: -5.2,
+      fin: -420.3, finYoy: 3.8, capex: 120.4, totalCF: 64.6,
+      netCashRatio: 1.73, fcf: 545.1, salesCash: 4410.2,
+    },
+
+    trends: {
+      years: ["2020", "2021", "2022", "2023", "2024"],
+      revenue: [2857.1, 3433.6, 3457.1, 3737.1, 4090.8],
+      coreProfit: [298.6, 332.4, 368.2, 410.5, 442.8],
+      coreMargin: [10.5, 9.7, 10.7, 11.0, 10.8],
+      netProfit: [272.2, 285.7, 295.5, 337.2, 385.4],
+    },
+
+    valuation: { A: 12, C: 14, R: 1.2, Y1: 80, Y5: 76 },
+  },
+};
+
+/* ============ 工具函数 ============ */
+function fmt(n, digits = 2) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return Number(n).toLocaleString("zh-CN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function signCls(n) {
+  if (n > 0) return "up";
+  if (n < 0) return "down";
+  return "";
+}
+
+function yoyHtml(v) {
+  if (v === null || v === undefined || v === 0) return '<span style="color:#aab4c0">—</span>';
+  return `<span class="${v > 0 ? "up" : "down"}">${v > 0 ? "+" : ""}${fmt(v, 1)}%</span>`;
+}
+
+/* ============ 概览卡片 ============ */
+function renderOverview(s) {
+  const box = document.getElementById("overviewCards");
+  const chgCls = s.change >= 0 ? "up" : "down";
+  const chgSign = s.change >= 0 ? "+" : "";
+  box.innerHTML = `
+    <div class="card highlight">
+      <div class="label">${s.name} ${s.code} · ${s.industry}</div>
+      <div class="value">¥${fmt(s.price)}</div>
+      <div class="sub ${chgCls}">${chgSign}${fmt(s.change)}%</div>
+    </div>
+    <div class="card">
+      <div class="label">总市值</div>
+      <div class="value">${fmt(s.marketCap, 0)}亿</div>
+      <div class="sub">约 ${fmt(s.marketCap / s.price, 1)} 亿股</div>
+    </div>
+    <div class="card">
+      <div class="label">PE-TTM</div>
+      <div class="value">${fmt(s.pe, 1)}</div>
+      <div class="sub">PB ${fmt(s.pb, 1)}</div>
+    </div>
+    <div class="card">
+      <div class="label">股息率</div>
+      <div class="value">${fmt(s.dividendYield)}%</div>
+      <div class="sub">现金分红 / 市值</div>
+    </div>
+    <div class="card">
+      <div class="label">财务评分</div>
+      <div class="score-wrap">
+        <svg class="score-ring" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#e5e9f0" stroke-width="6"/>
+          <circle cx="26" cy="26" r="22" fill="none" stroke="#16457c" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="${s.score * 1.382} 138.2"
+            transform="rotate(-90 26 26)"/>
+        </svg>
+        <div class="value">${s.score}</div>
+      </div>
+      <div class="sub">全市场排名 ${s.rank}</div>
+    </div>`;
+}
+
+/* ============ 报表 ============ */
+const REPORT_TABS = {
+  income: {
+    title: "利润表",
+    rows: (s) => [
+      ["营业收入", s.revenue, s.revenueGrowth, "主营收入"],
+      ["  减：营业成本", s.cost, null, `毛利率 ${fmt(s.grossMargin)}%`],
+      ["  减：营业税金及附加", s.tax, null, "消费税等"],
+      ["  减：销售费用", s.selling, null, "四费之一"],
+      ["  减：管理费用", s.admin, null, "四费之一"],
+      ["  减：研发费用", s.rd, null, "四费之一"],
+      ["  减：财务费用", s.finance, null, "四费之一（负为利息净收入）"],
+      ["核心利润", coreProfit(s), null, "主营业务真实盈利", true],
+      ["核心利润率", coreMargin(s), null, "核心利润 ÷ 营业收入", true],
+      ["营业利润", s.netProfit * 1.12, null, "含投资收益等"],
+      ["利润总额", s.netProfit * 1.11, null, "税前利润"],
+      ["净利润", s.netProfit, s.netProfitGrowth, "归母口径"],
+      ["每股收益 EPS", s.eps, null, "元/股"],
+    ],
+  },
+  balance: {
+    title: "资产负债表",
+    rows: (s) => s.balance.map((r, i) => ({
+      section: i === 0 || i === 5 || i === 10 || i === 15,
+      key: i === 9 || i === 15 || i === 16,
+      label: r[0], val: r[1], yoy: r[2], note: r[3],
+    })),
+  },
+  cashflow: {
+    title: "现金流量表",
+    rows: (s) => [
+      ["经营活动现金流净额", s.cashflow.op, s.cashflow.opYoy, "主业造血能力"],
+      ["  其中：销售商品收到现金", s.cashflow.salesCash, null, "回款质量"],
+      ["投资活动现金流净额", s.cashflow.inv, s.cashflow.invYoy, "扩张/投资支出"],
+      ["  其中：购建固定资产支付现金", s.cashflow.capex, null, "资本开支"],
+      ["筹资活动现金流净额", s.cashflow.fin, s.cashflow.finYoy, "融资/分红/还债"],
+      ["现金及等价物净增加额", s.cashflow.totalCF, null, "期初期末净变动"],
+      ["净现比", s.cashflow.netCashRatio, null, "经营现金流 ÷ 净利润"],
+      ["自由现金流 FCF", s.cashflow.fcf, null, "经营现金流 − 资本开支", true],
+    ],
+  },
+};
+
+function coreProfit(s) {
+  return s.revenue - s.cost - s.tax - (s.selling + s.admin + s.rd + s.finance);
+}
+function coreMargin(s) {
+  return (coreProfit(s) / s.revenue) * 100;
+}
+
+function renderReport(s, tab) {
+  const spec = REPORT_TABS[tab];
+  const title = { income: "利润表", balance: "资产负债表", cashflow: "现金流量表" }[tab];
+  document.getElementById("reportPeriod").textContent = `${title} · ${s.name} · 2024 年报（约）`;
+  const rows = spec.rows(s);
+  let html = `<table class="report">
+    <tr><th>科目</th><th>金额（亿元）</th><th>同比</th><th>说明</th></tr>`;
+  rows.forEach((r) => {
+    if (r.section !== undefined) {
+      const cls = r.section ? "section" : "";
+      const keyCls = r.key ? "key" : "";
+      html += `<tr class="${cls} ${keyCls}">
+        <td>${r.label}</td><td class="num">${fmt(r.val)}</td>
+        <td class="yoy">${yoyHtml(r.yoy)}</td><td class="note">${r.note || ""}</td></tr>`;
+    } else {
+      const [label, val, yoy, note, key] = r;
+      html += `<tr class="${key ? "key" : ""}">
+        <td>${label}</td><td class="num">${fmt(val)}</td>
+        <td class="yoy">${yoyHtml(yoy)}</td><td class="note">${note || ""}</td></tr>`;
+    }
+  });
+  html += "</table>";
+  document.getElementById("reportTable").innerHTML = html;
+}
+
+/* ============ 核心利润图表（SVG：柱 + 折线） ============ */
+function renderCpChart(s) {
+  const t = s.trends;
+  const W = 420, H = 180, padL = 42, padR = 42, padT = 14, padB = 26;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const maxCp = Math.max(...t.coreProfit) * 1.15;
+  const minM = Math.min(...t.coreMargin), maxM = Math.max(...t.coreMargin);
+  const spanM = Math.max(maxM - minM, 0.01);
+  const bw = iw / t.years.length * 0.52;
+  let bars = "", linePts = "";
+  t.years.forEach((y, i) => {
+    const cx = padL + iw * (i + 0.5) / t.years.length;
+    const bh = (t.coreProfit[i] / maxCp) * ih;
+    const bx = cx - bw / 2, by = padT + ih - bh;
+    bars += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="3" fill="#16457c" opacity="0.88"/>`;
+    bars += `<text x="${cx}" y="${by - 5}" text-anchor="middle" font-size="10" fill="#6b7a8d">${fmt(t.coreProfit[i], 0)}</text>`;
+    const my = padT + ih - ((t.coreMargin[i] - minM) / spanM) * ih;
+    linePts += `${cx},${my} `;
+    bars += `<circle cx="${cx}" cy="${my}" r="3" fill="#d99a1c"/>`;
+    bars += `<text x="${cx}" y="${padT + ih + 16}" text-anchor="middle" font-size="10" fill="#6b7a8d">${y}</text>`;
+  });
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="核心利润趋势">
+    <line x1="${padL}" y1="${padT + ih}" x2="${W - padR}" y2="${padT + ih}" stroke="#e5e9f0"/>
+    <polyline points="${linePts.trim()}" fill="none" stroke="#d99a1c" stroke-width="2"/>
+    ${bars}
+  </svg>`;
+  document.getElementById("cpChart").innerHTML = svg;
+}
+
+/* ============ 现金流画像 ============ */
+const CF_PICTURES = {
+  "+--": { name: "奶牛型", icon: "🐄", desc: "主业造血，同时扩张并分红/还债，最健康的画像", color: "#0c9d66" },
+  "+-+": { name: "成长型", icon: "🌱", desc: "主业造血但依靠融资扩张，需关注融资成本", color: "#2f6fb3" },
+  "++-": { name: "双源奶牛", icon: "🐮", desc: "经营与投资双造血，回报股东并偿债", color: "#0c9d66" },
+  "+++": { name: "神仙型", icon: "✨", desc: "三项全面流入，极为罕见，需警惕异常", color: "#7a5bd6" },
+  "-++": { name: "吃老本型", icon: "🦴", desc: "主业失血，靠投资和举债维持", color: "#d99a1c" },
+  "-+-": { name: "断奶型", icon: "🍼", desc: "主业失血，靠变卖资产偿债", color: "#e07b2a" },
+  "--+": { name: "赌徒型", icon: "🎲", desc: "经营与投资双失血，靠举债续命", color: "#d63a3a" },
+  "---": { name: "枯竭型", icon: "☠️", desc: "全面失血，经营难以为继", color: "#b02a2a" },
+};
+
+function cfSign(v) {
+  if (v == null || isNaN(v)) return "·";
+  return v > 0 ? "+" : "-";
+}
+
+function renderCf(s) {
+  const cf = s.cashflow;
+  const key = cfSign(cf.op) + cfSign(cf.inv) + cfSign(cf.fin);
+  const pic = key.includes("·")
+    ? { name: "数据不足", icon: "⏳", desc: "部分现金流科目暂未取到，无法判断画像", color: "#8a97a8" }
+    : (CF_PICTURES[key] || CF_PICTURES["---"]);
+  document.getElementById("cfPicture").innerHTML = `
+    <div class="cf-picture" style="border-color:${pic.color}">
+      <div class="cf-icon">${pic.icon}</div>
+      <div>
+        <div class="name" style="color:${pic.color}">${pic.name}</div>
+        <div class="desc">${pic.desc}</div>
+      </div>
+      <div class="cf-signs">
+        <span>经营 ${cfSign(cf.op)}</span>
+        <span>投资 ${cfSign(cf.inv)}</span>
+        <span>筹资 ${cfSign(cf.fin)}</span>
+      </div>
+    </div>`;
+
+  const rows = [
+    ["经营活动现金流净额", cf.op, "主业造血能力，正数为佳"],
+    ["投资活动现金流净额", cf.inv, "负数为扩张投入"],
+    ["筹资活动现金流净额", cf.fin, "负数为分红/还债"],
+    ["净现比（经营 ÷ 净利润）", cf.netCashRatio, "≥1 说明利润含金量高"],
+    ["自由现金流 FCF", cf.fcf, "经营现金流 − 资本开支"],
+  ];
+  let html = `<table class="report"><tr><th>指标</th><th>金额（亿元）</th><th>说明</th></tr>`;
+  rows.forEach(([label, val, note]) => {
+    html += `<tr><td>${label}</td><td class="num ${signCls(val)}">${fmt(val)}</td><td class="note">${note}</td></tr>`;
+  });
+  html += "</table>";
+  document.getElementById("cfTable").innerHTML = html;
+}
+
+/* ============ 估值模型（参考 ai财报网） ============ */
+function calcValuation(s, params) {
+  const A = params.A, C = params.C, R = params.R, Y1 = params.Y1, Y5 = params.Y5;
+  const P = s.netProfit * Math.pow(1 + A / 100, 3);            // 三年后净利润
+  const D = 0.3 * C + 0.7 * A;                                 // 合理市盈率
+  const K = Math.min(1.3, Math.max(0.7, R));                   // 业绩含金量
+  const L = Y1 * 0.6 + Y5 * 0.4;                               // 综合评分
+  const S = L >= 80 ? 1.2 : L > 70 ? 1.15 : L > 60 ? 1.1 : L > 50 ? 1 : L > 40 ? 0.9 : 0.8;
+  const V = P * D * K * S;                                     // 三年后合理总市值（亿元）
+  const V0 = V / Math.pow(1.03, 3);                            // 折现到当前
+  const shares = s.marketCap / s.price;                        // 总股本（亿股）
+  const fairPrice = V0 / shares;                               // 每股合理价
+  const bestBuy = fairPrice * 0.5;                             // 最佳买入（安全边际）
+  const okBuy = fairPrice * 0.7;                               // 可考虑买入
+  const overvalued = fairPrice * 1.2;                          // 高估线
+  const ratio = s.price / fairPrice;                           // 当前价 / 合理价
+  return { A, C, R, Y1, Y5, P, D, K, L, S, V, V0, fairPrice, bestBuy, okBuy, overvalued, ratio };
+}
+
+function renderValuation(s) {
+  const v = calcValuation(s, s.valuation);
+  const ratio = v.ratio;
+  const status = ratio < 0.6 ? ["低估", "low", "处于低估/击球区，安全边际较高"]
+    : ratio < 1.0 ? ["合理偏低", "ok", "尚未明显高估，可结合基本面研究"]
+    : ratio < 1.2 ? ["合理偏高", "ok", "接近或略高于合理价，注意控制仓位"]
+    : ["高估", "high", "已高于合理价上限，谨慎追高"];
+
+  document.getElementById("valSummary").innerHTML = `
+    <div class="val-item current">
+      <div class="label">当前价</div>
+      <div class="value">¥${fmt(s.price)}</div>
+      <div class="label">合理价 ¥${fmt(v.fairPrice)}<span class="badge ${status[1]}">${status[0]}</span></div>
+    </div>
+    <div class="val-item">
+      <div class="label">合理估值 V₀（总市值）</div>
+      <div class="value">${fmt(v.V0, 0)}亿</div>
+      <div class="label">三年后 V ≈ ${fmt(v.V, 0)}亿</div>
+    </div>
+    <div class="val-item">
+      <div class="label">最佳买入价（0.5×）</div>
+      <div class="value">¥${fmt(v.bestBuy)}</div>
+      <div class="label">股价低估线</div>
+    </div>
+    <div class="val-item">
+      <div class="label">可买入价（0.7×）</div>
+      <div class="value">¥${fmt(v.okBuy)}</div>
+      <div class="label">合理区间下沿</div>
+    </div>
+    <div class="val-item">
+      <div class="label">高估线（1.2×）</div>
+      <div class="value">¥${fmt(v.overvalued)}</div>
+      <div class="label">当前位于合理价 ${fmt(ratio * 100, 0)}%</div>
+    </div>`;
+
+  // 估值条：0 ~ 1.4×合理价
+  const max = v.fairPrice * 1.4;
+  const pos = (x) => Math.min(100, Math.max(0, (x / max) * 100));
+  const marks = [
+    ["0.5× 最佳买入", pos(v.bestBuy)],
+    ["0.7× 可买入", pos(v.okBuy)],
+    ["1.0× 合理价", pos(v.fairPrice)],
+    ["1.2× 高估", pos(v.overvalued)],
+  ].map(([label, p]) => `<div class="mark" style="left:${p}%" data-label="${label}"></div>`).join("");
+  document.getElementById("valTrack").innerHTML = `
+    <div class="val-track">
+      ${marks}
+      <div class="price-dot" style="left:${pos(s.price)}%" data-price="¥${fmt(s.price)}"></div>
+    </div>
+    <div style="font-size:11px;color:#6b7a8d;margin-top:8px">${status[2]}（当前价 ¥${fmt(s.price)} ≈ 合理价 ${fmt(ratio * 100, 0)}%）</div>`;
+
+  // 模型计算过程
+  const p = s.valuation;
+  document.getElementById("modelSteps").innerHTML = `
+    <b>计算过程（${s.name}）：</b><br>
+    ① 三年后净利润 P = ${fmt(s.netProfit)} × (1+${p.A}%)³ ≈ <b>${fmt(v.P)}亿</b><br>
+    ② 合理市盈率 D = 0.3×${p.C} + 0.7×${p.A} ≈ <b>${fmt(v.D, 1)}</b>（PEG 权重更高）<br>
+    ③ 含金量 K = ${fmt(v.K, 2)}（净现比 ${p.R} 截取到 0.7~1.3）；评分加权 S = ${fmt(v.S, 2)}（综合 ${fmt(v.L, 0)} 分）<br>
+    ④ 三年后估值 V = ${fmt(v.P, 0)} × ${fmt(v.D, 1)} × ${fmt(v.K, 2)} × ${fmt(v.S, 2)} ≈ <b>${fmt(v.V, 0)}亿</b><br>
+    ⑤ 折现 V₀ = V ÷ 1.03³ ≈ <b>${fmt(v.V0, 0)}亿</b> → 每股合理价 <b>¥${fmt(v.fairPrice)}</b>`;
+}
+
+/* ============ 事件绑定 ============ */
+function buildParamInputs(s) {
+  const p = s.valuation;
+  const paramsHtml = [
+    ["A", "预期年化增速 %", p.A],
+    ["C", "历史 PE 中位数", p.C],
+    ["R", "5年平均净现比", p.R],
+    ["Y1", "近一年评分", p.Y1],
+    ["Y5", "5年平均评分", p.Y5],
+  ].map(([id, label, val]) => `
+    <div class="param">
+      <label>${label}（${id}）</label>
+      <input id="param_${id}" type="number" step="0.1" value="${val}" min="0">
+    </div>`).join("");
+  document.getElementById("paramBox").innerHTML = paramsHtml;
+}
+
+function bindValuationParams(s) {
+  ["A", "C", "R", "Y1", "Y5"].forEach((id) => {
+    const el = document.getElementById("param_" + id);
+    el.addEventListener("input", () => {
+      s.valuation[id] = parseFloat(el.value) || 0;
+      renderValuation(s);
+    });
+  });
+}
+
+function renderAnalysis(s) {
+  const box = document.getElementById("analysisBox");
+  const v = calcValuation(s, s.valuation);
+  const ratio = v.ratio;
+  const gross = s.grossMargin;
+  const ncr = s.cashflow.netCashRatio;
+  const score = s.score;
+  const revGrowth = s.revenueGrowth;
+  const drRow = (s.balance || []).find((r) => r[0] === "资产负债率");
+  const debt = drRow ? drRow[1] : null;
+  const cfKey = cfSign(s.cashflow.op) + cfSign(s.cashflow.inv) + cfSign(s.cashflow.fin);
+  const cfPic = CF_PICTURES[cfKey];
+
+  const strong = [];
+  const risk = [];
+
+  if (gross != null) {
+    if (gross >= 30) strong.push(`毛利率 ${fmt(gross, 1)}%，主营业务盈利能力较强`);
+    else if (gross >= 15) strong.push(`毛利率 ${fmt(gross, 1)}%，盈利水平中等`);
+    else strong.push(`毛利率 ${fmt(gross, 1)}%，盈利空间偏薄`);
+  }
+  const cm = s.trends.coreMargin[0];
+  if (cm != null) strong.push(`核心利润率 ${fmt(cm, 1)}%，主业造血能力${cm >= 20 ? "突出" : "一般"}`);
+  if (ncr != null && ncr >= 1) strong.push(`净现比 ${fmt(ncr, 2)}，利润含金量高`);
+  else if (ncr != null && ncr < 0.8) risk.push(`净现比 ${fmt(ncr, 2)}，利润现金含量待观察`);
+  if (score != null) {
+    if (score >= 80) strong.push(`财务评分 ${score}，整体质地优秀`);
+    else if (score < 60) risk.push(`财务评分 ${score} 偏低，基本面需谨慎`);
+  }
+  if (revGrowth != null) {
+    if (revGrowth > 10) strong.push(`营收同比 ${fmt(revGrowth, 1)}%，成长性较好`);
+    else if (revGrowth < 0) risk.push(`营收同比 ${fmt(revGrowth, 1)}%，处于下滑区间`);
+  }
+  if (debt != null) {
+    if (debt > 65) risk.push(`资产负债率 ${fmt(debt, 1)}%，杠杆偏高`);
+    else if (debt < 45) strong.push(`资产负债率 ${fmt(debt, 1)}%，财务结构较稳健`);
+  }
+  if (cfKey.includes("·")) risk.push("现金流部分科目未取到，画像判断受限");
+  else if (cfPic && ["--+", "---", "-++", "-+-"].includes(cfKey)) {
+    risk.push(`现金流画像为“${cfPic.name}”，${cfPic.desc}`);
+  }
+
+  let status, statusTxt;
+  if (ratio < 0.6) { status = "低估区"; statusTxt = "股价处于合理价下方较多，安全边际较高"; }
+  else if (ratio < 1.0) { status = "合理偏低"; statusTxt = "股价略低于合理价，估值尚可"; }
+  else if (ratio < 1.2) { status = "合理偏高"; statusTxt = "股价接近或略高于合理价，估值优势有限"; }
+  else { status = "高估区"; statusTxt = "股价高于合理价上限，估值偏贵"; }
+  const valTxt = `当前价 ¥${fmt(s.price)}，合理价 ¥${fmt(v.fairPrice)}（现价为合理价的 ${fmt(ratio * 100, 0)}%）→ ${status}。` +
+    `参考价位：最佳买入 ¥${fmt(v.bestBuy)}，可买入 ¥${fmt(v.okBuy)}，高估线 ¥${fmt(v.overvalued)}。${statusTxt}。`;
+
+  let verdict, cls, advice;
+  if (ratio <= 0.7 && score >= 70) {
+    verdict = "偏积极 · 可关注布局"; cls = "pos";
+    advice = "具备一定安全边际且基本面较稳，可列为观察标的、关注分批布局；若后续风险项增加则下调关注度。";
+  } else if (ratio <= 1.0 && score >= 60) {
+    verdict = "中性偏多 · 持有为主"; cls = "neu";
+    advice = "处于合理区间，可持有或逢回调分批；当前安全边际不突出，不建议追高。";
+  } else if (ratio > 1.2) {
+    verdict = "偏谨慎 · 等待估值回归"; cls = "cau";
+    advice = "估值已偏高，建议等待股价回落至合理价附近，并结合基本面持续验证后再评估。";
+  } else {
+    verdict = "中性观望"; cls = "neu";
+    advice = "估值与基本面较为均衡，建议观望，等待更明确信号或更好的安全边际。";
+  }
+  if (risk.length) advice += ` 提示：${risk[0]}。`;
+
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="verdict ${cls}">${verdict}</span>
+      <span style="font-size:12px;color:#6b7a8d">${s.name} · 现金流画像 ${cfPic ? cfPic.name : "数据不足"}</span>
+    </div>
+    <p class="an-summary">${valTxt}</p>
+    <div class="an-cols">
+      <div>
+        <div style="font-weight:700;color:#0c9d66;margin-bottom:4px">亮点</div>
+        <ul class="an-list an-strong">${strong.map((t) => `<li>${t}</li>`).join("") || "<li>暂无明显亮点</li>"}</ul>
+      </div>
+      <div>
+        <div style="font-weight:700;color:#d63a3a;margin-bottom:4px">风险 / 注意</div>
+        <ul class="an-list an-risk">${risk.map((t) => `<li>${t}</li>`).join("") || "<li>暂未发现显著风险信号</li>"}</ul>
+      </div>
+    </div>
+    <p style="margin-top:8px;font-size:12px;color:#6b7a8d">参考操作：${advice}<br>
+      数据来源：同花顺 iFinD（主源）${s.verify ? " × " + s.verify.source + "（交叉核对）" : ""} ${verifyText(s.verify)}。
+      以上为基于公开量化数据的自动化分析，仅供研究参考，不构成投资建议。</p>`;
+}
+
+function renderAll(s) {
+  renderOverview(s);
+  renderReport(s, "income");
+  document.getElementById("cpValue").textContent = fmt(coreProfit(s));
+  document.getElementById("cpMargin").textContent = fmt(coreMargin(s)) + "%";
+  const cpSub = document.getElementById("cpSub");
+  cpSub.textContent = `${s.name} 核心利润 ≈ ${fmt(coreProfit(s))}亿，占净利润 ${fmt(coreProfit(s) / s.netProfit * 100, 0)}%`;
+  renderCpChart(s);
+  renderCf(s);
+  renderValuation(s);
+  buildParamInputs(s);
+  bindValuationParams(s);
+  renderAnalysis(s);
+}
+
+/* ============ Tab 切换 ============ */
+document.getElementById("reportTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  document.querySelectorAll("#reportTabs button").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderReport(currentStock(), btn.dataset.tab);
+});
+
+function currentStock() {
+  const key = document.getElementById("stockSelect").value;
+  return STOCKS[key];
+}
+
+document.getElementById("stockSelect").addEventListener("change", () => renderAll(currentStock()));
+
+/* ============ 初始化 ============ */
+document.getElementById("stockSelect").innerHTML = Object.entries(STOCKS)
+  .map(([k, s]) => `<option value="${k}">${s.name}（${s.code}）</option>`)
+  .join("");
+renderAll(currentStock());
+
+/* ============ 实时行情（同花顺 iFinD） ============ */
+const CODE_TO_KEY = { "600519": "moutai", "300750": "catl", "000333": "midea" };
+const NAME_TO_KEY = { "贵州茅台": "moutai", "宁德时代": "catl", "美的集团": "midea" };
+
+function liveNum(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+function fmtNum(v, digits = 2) {
+  const n = liveNum(v);
+  return n == null ? "—" : n.toLocaleString("zh-CN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+function toYi(v) { // 元 -> 亿元
+  const n = liveNum(v);
+  return n == null ? "—" : fmtNum(n / 1e8, 1);
+}
+function toWanShou(v) { // 手 -> 万手
+  const n = liveNum(v);
+  return n == null ? "—" : fmtNum(n / 1e4, 1);
+}
+
+function quoteCard(q) {
+  const latest = liveNum(q.latest);
+  const chg = liveNum(q.changeRatio);
+  const chgCls = chg == null ? "" : (chg >= 0 ? "up" : "down");
+  const chgSign = chg != null && chg >= 0 ? "+" : "";
+  return `
+    <div class="card highlight">
+      <div class="label">${q.name || ""} ${q.symbol || ""}</div>
+      <div class="value">¥${latest == null ? "—" : fmtNum(latest)}</div>
+      <div class="sub ${chgCls}">${chgSign}${fmtNum(chg, 2)}%</div>
+    </div>
+    <div class="card"><div class="label">成交额</div><div class="value">${toYi(q.amount)}亿</div><div class="sub">成交量 ${toWanShou(q.volume)}万手</div></div>
+    <div class="card"><div class="label">换手率</div><div class="value">${fmtNum(q.turnoverRatio, 2)}%</div><div class="sub">量比 ${fmtNum(q.vol_ratio, 2)}</div></div>
+    <div class="card"><div class="label">PE-TTM</div><div class="value">${fmtNum(q.pe_ttm, 1)}</div><div class="sub">PB ${fmtNum(q.pb, 2)}</div></div>
+    <div class="card"><div class="label">总市值</div><div class="value">${toYi(q.totalCapital)}亿</div><div class="sub">现价 ${fmtNum(q.latest)}</div></div>`;
+}
+
+function verifyText(v) {
+  if (!v) return "";
+  const src = v.source || "第二数据源";
+  if (v.ok === null) return `⚠️ 交叉源（${src}）暂不可用`;
+  if (v.ok === true) return `✅ 多源一致（同花顺 iFinD × ${src}）`;
+  return `⚠️ 多源存在差异：${(v.diffs || []).join("、")}`;
+}
+
+function matchedBuiltin(q) {
+  const code = (q.symbol || "").replace(/\.(SH|SZ|BJ)$/i, "");
+  if (CODE_TO_KEY[code]) return CODE_TO_KEY[code];
+  const name = (q.name || "").trim();
+  if (NAME_TO_KEY[name]) return NAME_TO_KEY[name];
+  return null;
+}
+
+async function fetchLiveQuote(term) {
+  const rowsBox = document.getElementById("liveRows");
+  const note = document.getElementById("liveNote");
+  document.getElementById("liveSection").style.display = "";
+  note.className = "live-note";
+  note.textContent = "查询中…";
+  try {
+    const resp = await fetch("/api/quote?symbols=" + encodeURIComponent(term));
+    const out = await resp.json();
+    if (!out.ok) {
+      rowsBox.innerHTML = "";
+      note.className = "live-note live-err";
+      note.textContent = "查询失败：" + (out.error || "未知错误");
+      return;
+    }
+    const data = out.data || [];
+    if (!data.length) {
+      rowsBox.innerHTML = "";
+      note.className = "live-note live-err";
+      note.textContent = "未找到股票，请确认代码或简称是否正确（例如 600519、贵州茅台）。";
+      return;
+    }
+    rowsBox.innerHTML = data.map(quoteCard).join("");
+    let synced = "";
+    data.forEach((q) => {
+      const key = matchedBuiltin(q);
+      if (key) {
+        const s = STOCKS[key];
+        const latest = liveNum(q.latest);
+        if (latest != null) s.price = latest;
+        const pe = liveNum(q.pe_ttm);
+        if (pe != null) s.pe = pe;
+        const pb = liveNum(q.pb);
+        if (pb != null) s.pb = pb;
+        const mc = liveNum(q.totalCapital);
+        if (mc != null) s.marketCap = mc / 1e8;
+        const chg = liveNum(q.changeRatio);
+        if (chg != null) s.change = chg;
+        document.getElementById("stockSelect").value = key;
+        synced = `（${s.name} 已用实时行情同步到工作台）`;
+      }
+    });
+    note.className = "live-note";
+    note.textContent = "数据来自同花顺 iFinD 实时快照 · " + new Date().toLocaleTimeString("zh-CN") + " " + synced +
+      " " + (data[0] ? verifyText(data[0].verify) : "");
+    if (data.length) renderAll(currentStock());
+  } catch (e) {
+    rowsBox.innerHTML = "";
+    note.className = "live-note live-err";
+    note.textContent = "无法连接本地数据服务：请先运行 python server.py，再用浏览器访问 http://127.0.0.1:8765/stock-dashboard.html";
+  }
+}
+
+function matchKey(obj) {
+  const code = (obj.code || "").replace(/\.(SH|SZ|BJ)$/i, "");
+  if (CODE_TO_KEY[code]) return CODE_TO_KEY[code];
+  const name = (obj.name || "").trim();
+  if (NAME_TO_KEY[name]) return NAME_TO_KEY[name];
+  return null;
+}
+function addOption(key, label) {
+  const sel = document.getElementById("stockSelect");
+  const exists = [...sel.options].some((o) => o.value === key);
+  if (!exists) sel.add(new Option(label, key));
+}
+function renderFullStock(obj) {
+  const key = matchKey(obj) || ("u_" + obj.code);
+  STOCKS[key] = obj;
+  addOption(key, obj.name + "（" + obj.code + "）");
+  document.getElementById("stockSelect").value = key;
+  document.getElementById("liveRows").innerHTML = quoteCard(obj.quote || obj);
+  const yr = (obj.period || "").slice(0, 4);
+  const note = document.getElementById("liveNote");
+  note.className = "live-note";
+  note.textContent = "已同步刷新全部板块：实时行情（iFinD）+ " + obj.name + " 的 " + (yr || "最新") +
+    " 年报三表（含核心利润、现金流画像、估值区间）· " + new Date().toLocaleTimeString("zh-CN") + " · " + verifyText(obj.verify);
+  renderAll(obj);
+}
+async function queryStock(term) {
+  const rowsBox = document.getElementById("liveRows");
+  const note = document.getElementById("liveNote");
+  document.getElementById("liveSection").style.display = "";
+  note.className = "live-note";
+  note.textContent = "查询中…";
+  try {
+    const resp = await fetch("/api/stock?symbol=" + encodeURIComponent(term));
+    const out = await resp.json();
+    if (out.ok && out.data) { renderFullStock(out.data); return; }
+    // 回退：仅实时行情
+    const qresp = await fetch("/api/quote?symbols=" + encodeURIComponent(term));
+    const qout = await qresp.json();
+    if (qout.ok && (qout.data || []).length) {
+      rowsBox.innerHTML = qout.data.map(quoteCard).join("");
+      note.textContent = "财报数据未取到，仅展示实时行情：" + (out.error || "");
+    } else {
+      rowsBox.innerHTML = "";
+      note.className = "live-note live-err";
+      note.textContent = "查询失败：" + ((qout.error) || (out.error) || "未找到该股票");
+    }
+  } catch (e) {
+    rowsBox.innerHTML = "";
+    note.className = "live-note live-err";
+    note.textContent = "无法连接本地数据服务：请先运行 python server.py，再用浏览器访问 http://127.0.0.1:8765/stock-dashboard.html";
+  }
+}
+
+function initLive() {
+  const input = document.getElementById("liveSearch");
+  const btn = document.getElementById("liveBtn");
+  const refresh = document.getElementById("liveRefresh");
+  const doQuery = () => {
+    const v = (input.value || "").trim();
+    if (v) queryStock(v);
+  };
+  btn.addEventListener("click", doQuery);
+  refresh.addEventListener("click", doQuery);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") doQuery(); });
+  // 支持 ?code=600519 直达查询某只股票
+  const q = new URLSearchParams(location.search).get("code");
+  if (q) { input.value = q; queryStock(q); }
+}
+initLive();
+</script>
+</body>
+</html>

@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html data-page-node-id="tSLywvzciXTYfCSTG5I5pH" lang="zh-CN">
+<head data-page-node-id="dO9746QsQt7S2MD6mqmrq7">
+<script data-page-node-id="P3Y0lUCGiugICOi4HfNnw0" src="/page/page_comm/inject.js"></script>
+<meta data-page-node-id="M5V77uSfo6E3iE7QArsYaT" charset="UTF-8">
+<meta data-page-node-id="QVA4OEXIfRbDbfQ6P3fWIp" content="width=device-width,initial-scale=1" name="viewport">
+<title data-page-node-id="5VxQRqTe5NJCq1J2a8WxSZ" data-pnid-children="kFw0s8jgkFUNDby8KWHPXe">上马路牙子几何模拟</title>
+<style data-page-node-id="qOUaLZrqPXla3bsPdNZ2R6" data-pnid-children="EOiiSEx4Njp0rFWTTRTANh">
+:root{
+  --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --line:#2a303d;
+  --text:#e6e9ef; --muted:#8b93a7; --accent:#4ea1ff;
+  --ok:#3ddc97; --warn:#ffb020; --bad:#ff5c5c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); min-height:100vh;
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:14px}
+header{padding:10px 2px 16px}
+h1{font-size:19px;font-weight:650;letter-spacing:.3px}
+.sub{color:var(--muted);font-size:13px;margin-top:5px;line-height:1.6}
+.grid{display:grid;grid-template-columns:1fr 330px;gap:14px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card-hd{padding:10px 13px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card-bd{padding:12px 13px}
+#sceneWrap{position:relative;background:#12151b}
+canvas{display:block;width:100%}
+#scene{height:340px}
+@media(max-width:520px){#scene{height:250px}}
+#topview{height:210px}
+
+/* HUD 状态条 */
+.hud{position:absolute;left:10px;top:10px;background:rgba(10,12,16,.82);border:1px solid var(--line);
+  border-radius:9px;padding:8px 11px;font-size:12px;line-height:1.75;backdrop-filter:blur(6px);pointer-events:none;min-width:168px}
+.hud .k{color:var(--muted);display:inline-block;min-width:74px}
+.hud b{font-variant-numeric:tabular-nums;font-weight:600}
+.tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;font-weight:600}
+.tag.ok{background:rgba(61,220,151,.15);color:var(--ok)}
+.tag.warn{background:rgba(255,176,32,.15);color:var(--warn)}
+.tag.bad{background:rgba(255,92,92,.15);color:var(--bad)}
+
+/* 控制条 */
+.ctrl{display:flex;align-items:center;gap:9px;padding:10px 13px;border-top:1px solid var(--line);flex-wrap:wrap}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit}
+button:hover{border-color:#3c4557}
+button.primary{background:var(--accent);border-color:var(--accent);color:#06121f;font-weight:600}
+input[type=range]{flex:1;min-width:110px;accent-color:var(--accent);height:22px}
+.seg{display:flex;gap:5px}
+.seg button{padding:6px 11px;font-size:12px}
+.seg button.on{background:rgba(78,161,255,.16);border-color:var(--accent);color:var(--accent)}
+
+/* 车型搜索 */
+.carsearch{margin-bottom:14px;padding-bottom:13px;border-bottom:1px solid var(--line)}
+.carsearch .plabel{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
+.sbox{position:relative}
+.sbox input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--text);border-radius:9px;padding:9px 30px 9px 11px;font-size:13px;font-family:inherit;
+  outline:none;-webkit-appearance:none}
+.sbox input[type=text]:focus{border-color:var(--accent)}
+.sbox input::placeholder{color:#5d6577}
+.clearbtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);font-size:19px;line-height:1;
+  padding:2px 6px;cursor:pointer;display:none}
+.clearbtn:hover{color:var(--text)}
+.clist{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;
+  background:#1b1f28;border:1px solid var(--line);border-radius:9px;
+  max-height:264px;overflow-y:auto;box-shadow:0 10px 28px rgba(0,0,0,.5);display:none}
+.clist.show{display:block}
+.citem{padding:8px 11px;cursor:pointer;border-bottom:1px solid #232936;font-size:12.5px}
+.citem:last-child{border-bottom:none}
+.citem:hover,.citem.sel{background:rgba(78,161,255,.13)}
+.citem .cn{color:var(--text);font-weight:600}
+.citem .cd{color:var(--muted);font-size:11px;margin-top:2px}
+.citem .cd b{color:#c3cad8;font-weight:600}
+.cempty{padding:11px;color:var(--muted);font-size:12px;line-height:1.7}
+.hots{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.hots button{padding:5px 9px;font-size:11.5px;border-radius:7px}
+.carcard{margin-top:9px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:9px;padding:9px 11px;display:none}
+.carcard.show{display:block}
+.carcard .ct{font-size:13px;font-weight:650;color:var(--text)}
+.carcard .cs{font-size:11px;color:var(--muted);margin-top:2px}
+.carcard .cl{font-size:11.5px;color:#b9c1d0;line-height:1.75;margin-top:6px}
+.carcard .cl b{color:var(--accent)}
+.carcard .cb{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.carcard .cb button{padding:5px 10px;font-size:11.5px}
+.carcard .cb button.on{background:rgba(78,161,255,.16);border-color:var(--accent);color:var(--accent)}
+.carcard .cw{font-size:10.5px;color:var(--warn);line-height:1.6;margin-top:7px;
+  padding-top:7px;border-top:1px solid var(--line)}
+.carcard .cw.info{color:var(--muted)}
+.pgroup{margin-bottom:15px}
+.pgroup:last-child{margin-bottom:2px}
+.prow{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:3px}
+.prow .nm{color:#c3cad8}
+.prow .vl{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent);font-size:13px}
+.prow .hint{color:var(--muted);font-size:11px}
+.pgroup input[type=range]{width:100%;margin:0}
+.reset{font-size:12px;padding:6px 10px}
+
+/* 结论 */
+.verdict{padding:13px}
+.vhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.vbadge{font-size:15px;font-weight:700;padding:7px 14px;border-radius:9px}
+.vbadge.ok{background:rgba(61,220,151,.14);color:var(--ok);border:1px solid rgba(61,220,151,.3)}
+.vbadge.warn{background:rgba(255,176,32,.14);color:var(--warn);border:1px solid rgba(255,176,32,.3)}
+.vbadge.bad{background:rgba(255,92,92,.14);color:var(--bad);border:1px solid rgba(255,92,92,.3)}
+.vtxt{font-size:12.5px;color:#b9c1d0;line-height:1.65}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin:11px 0}
+.m{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 9px}
+.m .ml{font-size:10.5px;color:var(--muted);line-height:1.35}
+.m .mv{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums;margin-top:3px}
+ul.risk{list-style:none;font-size:12.5px;line-height:1.85;color:#c3cad8}
+ul.risk li{padding-left:17px;position:relative}
+ul.risk li:before{content:"•";position:absolute;left:4px;color:var(--muted)}
+ul.risk li.hi{color:#ffb8b8}ul.risk li.hi:before{color:var(--bad)}
+ul.risk li.lo{color:#a9e9cb}ul.risk li.lo:before{color:var(--ok)}
+ul.risk li.mid{color:#ffd08a}ul.risk li.mid:before{color:var(--warn)}
+.notes{font-size:12px;color:var(--muted);line-height:1.8;margin-top:11px;padding-top:11px;border-top:1px solid var(--line)}
+.notes b{color:#c3cad8}
+footer{padding:16px 2px 8px;font-size:11.5px;color:#6b7385;line-height:1.75}
+</style>
+</head>
+<body data-page-node-id="Lldo21it8qPtEH2mEMiXqc">
+<div data-page-node-id="PdV5nH8MZVSkE9SgZFYgvY" class="wrap">
+<header data-page-node-id="4kVtLJOA8HkHT4WAYBuKrn">
+  <h1 data-page-node-id="j8eeZi2EotRLsyHkDncPIO"><!--pnid:OX9iYq42VVdmp12ui0YR2J-->上马路牙子几何模拟</h1>
+  <div data-page-node-id="hkIAPouW8y9AgEOP2RIMJO" class="sub"><!--pnid:SHU5W02cEzn5QlPvdrLCTN-->右侧搜索框<b data-page-node-id="vkerYCqIshuGutrco1HFP8"><!--pnid:tsMEjVAlnXKCODWPCLe3XR-->输入车名即可代入参数</b><!--pnid:WDPq02qr47oshTiAAa9ZHx-->（已收录 <b data-page-node-id="asqRKK5nQKXqTqeAfS5UTd" id="dbCount"><!--pnid:DHAxHgAyw54DKoU6xh8afx-->—</b><!--pnid:aQr7ZMAYvjkEhcyPJO3lcH--> 款，试试 海豹08 / Model Y / CR-V / 坦克300），也可点热门标签或手动拖滑块。<br data-page-node-id="QYSmd4gAJypJzDectukHgj"><!--pnid:skUnqFjIDS6PUmxtE0VHyp-->数据分三级：<b data-page-node-id="HLjr3P6Afi22EAxKS5N4GC" style="color:#3ddc97"><!--pnid:ti3IraDDuriWmSQ9gsPusM-->已核实</b><!--pnid:pDjexCr4e9NkwetrbBhddr-->（参数库）· <b data-page-node-id="JpNaa1sPKI0gNu6aRcEyL1" style="color:#4ea1ff"><!--pnid:gNJkVC6leO5hVYu4tLpGb2-->媒体</b><!--pnid:yfTcUu5n6eSrhhSG7YUhVv-->（实测报道）· <b data-page-node-id="0TAoxPfmmkfZ3qRX6f5bGh" style="color:#ffb020"><!--pnid:c3qgSp8kgOKnP4qnHAdZUE-->估算</b><!--pnid:5JiUs6NoFHZzPQ2upbxbGC-->（未查证，按同级典型值，建议实测修正）。<br data-page-node-id="WFSGR0C9niPVifm6lwB6QX"><!--pnid:9kD7BRxOlzFXv87wALRkj4-->动画演示的是<b data-page-node-id="UdM9MoxlztWpFvWrAmy82P"><!--pnid:dS2tPF2C0vDheaGM3dNFUC-->正面垂直直上</b><!--pnid:FAL26CmyZ11lLLBWgfFU8B-->——这是最不利的工况，如果它都安全，斜着上只会更安全。</div>
+</header>
+
+<div data-page-node-id="XpRMYZkIDsVV27ZZj6k9lo" class="grid">
+  <!--pnid:tUHnKcq3gpI6LqsbDcPsZy--><!-- 左：主视图 -->
+  <div data-page-node-id="EnuI2hK83W8xhF0vO37JyS">
+    <div data-page-node-id="3jwZXUJYSpXySYrVq4pfKL" class="card">
+      <div data-page-node-id="fBQZUS7HffRr02fMklfWGs" class="card-hd">
+        <span data-page-node-id="3Neg2b8HyQ89PoM5dwereL"><!--pnid:kB9XClJ32e8mDWuThkLOPv-->侧视图 · 正面垂直上（最不利工况）</span>
+        <span data-page-node-id="q2M7LMmMxi3c1mvknEmFnP" class="tag ok" id="phaseTag"><!--pnid:abNYNGYzVOUZLFZdWJdh2h-->准备接近</span>
+      </div>
+      <div data-page-node-id="3od3f05fwmV444dVRIFclG" id="sceneWrap">
+        <canvas data-page-node-id="7K2UZLwaAZLwaYhBvZwedj" id="scene"></canvas>
+        <div data-page-node-id="uD3mpsDnLD8cPlENMI6f3w" class="hud" id="hud"></div>
+      </div>
+      <div data-page-node-id="Z359Hg5DDpeOZdMfEKNPxw" class="ctrl">
+        <button data-page-node-id="2tRBcNc4yNgU8KbzvuJPDb" class="primary" id="btnPlay"><!--pnid:eGuWg3jOajn5X8Wo0BaX63-->暂停</button>
+        <button data-page-node-id="JcKz30GhqCyw0JtTFtn0oh" id="btnReplay"><!--pnid:NKtG4VxCBz9wksvww4qkKs-->重播</button>
+        <input data-page-node-id="7mUHz904R08XzXNiJPkRE5" id="seek" max="1000" min="0" type="range" value="0">
+        <div data-page-node-id="q1Bz27YpsRMQjuje7WvdJo" class="seg">
+          <button data-page-node-id="5N28Wnkov0ca63sQjxhf3O" data-sp="0.4"><!--pnid:LMINjOvusOYHZIDeoQroJf-->慢</button>
+          <button data-page-node-id="6NYZsCu5OAdkxmAOTfQwen" class="on" data-sp="0.8"><!--pnid:mzoz5b4BIqMavvJ4udZ9Yh-->常速</button>
+          <button data-page-node-id="IOPLcdhxFG2JmVHX3xnTpz" data-sp="1.6"><!--pnid:f00Zr7SQ2p0F6lc2F0MTN9-->快</button>
+        </div>
+      </div>
+    </div>
+
+    <div data-page-node-id="4pw7gOd209CnmkRMSMGyQN" class="card" style="margin-top:14px">
+      <div data-page-node-id="gjpCqwzEwf3m8oAOnLY6Yh" class="card-hd">
+        <span data-page-node-id="9F8VDy5P3Ej1IiljwWIxQ6"><!--pnid:sdXlQypT4ulBm5GVmP8Fqo-->俯视图 · 为什么应该斜着 30~45° 上</span>
+        <span data-page-node-id="z62fFOdYHzX5uNPEwdFvRE" class="tag ok" id="tvTag"><!--pnid:FJxuB1CEEAiVbgNyLrvnM2-->一次上一个轮</span>
+      </div>
+      <canvas data-page-node-id="ieOk0Lbp0G1V0mr7rmmgUF" id="topview"></canvas>
+      <div data-page-node-id="3KEXYI18avBwr2I1YGWgIe" class="card-bd" style="font-size:12.5px; color:#b9c1d0; line-height:1.8"><!--pnid:blqLZRVqoCyfzwPhHFxNqS-->
+        斜着上时四个轮<b data-page-node-id="wnC5r6SA3LQSKDMCKePFrX"><!--pnid:QcOTZJ1mYXBVrVnumKzXdm-->依次</b><!--pnid:riR25Yag2bJdsl78nvzWE8-->跨越路缘石，同一时刻只有一个轮在爬台阶：冲击载荷被摊开，胎壁不会被整侧硬挤，车身也只是轻微侧倾而不会整体俯冲。<br data-page-node-id="eYclWFY2X7xwTIGnHzGO5S"><!--pnid:QL0UL9OHRZNFOoau7My7BG-->
+        正面直上则是<b data-page-node-id="Z6MWLY6wJja8a4kMwOeNwa"><!--pnid:pTq3U8kFzomK07hEHGHSa5-->两个前轮同时顶</b><!--pnid:ht7kKactor71lck4yXqMf5-->上台阶，需要更大的水平推力，胎壁挤压和悬挂冲击都成倍增加——这才是伤车的主因。
+      </div>
+    </div>
+  </div>
+
+  <!--pnid:szGwQWbVbiGTdQURnckXAx--><!-- 右：参数 + 结论 -->
+  <div data-page-node-id="hKWC2Jsu026ofMmZdeZVVz">
+    <div data-page-node-id="H3EWD3usMOHhAiDlm2JIyu" class="card">
+      <div data-page-node-id="y3GjoDWCJzKMj005KqqcyC" class="card-hd">
+        <span data-page-node-id="ub6XspYOvks4D3mYlZYiNV"><!--pnid:nszw3nX2SHUE8aGoBomUXC-->参数（拖着试试）</span>
+        <button data-page-node-id="gRBN2HZDOBYafU4ROnicJC" class="reset" id="btnReset"><!--pnid:QIO80NX3nBzviCVILqVURO-->恢复默认</button>
+      </div>
+      <div data-page-node-id="RGLSHaBJBCbBIoQtSo60w9" class="card-bd">
+        <div data-page-node-id="CMxclfugnhfcANCgIzssrg" class="carsearch">
+          <span data-page-node-id="kmqOAbgtohgRMAzRrZwir8" class="plabel"><!--pnid:rt4ZFMzdVpGwsz8XfisVR3-->输入或选择车型（数据代入后仍可手动微调）</span>
+          <div data-page-node-id="Vo3o6arpqoxfmJngmYa1LB" class="sbox">
+            <input data-page-node-id="K46KfOotK4FtvJybw8zgTE" autocomplete="off" id="carInput" placeholder="输入车名，如 海豹08 / Model Y / CR-V" spellcheck="false" type="text">
+            <button data-page-node-id="qs6tf9gciXS9NFaQp3J2VZ" class="clearbtn" id="carClear" title="清空"><!--pnid:yb0e3i3RKcpRfNlTcF1Zya-->×</button>
+            <div data-page-node-id="I56uRmLuAFEoQQ8UjMVa9r" class="clist" id="carList"></div>
+          </div>
+          <div data-page-node-id="ZJBIHu8LWRt3b5IylEPZyQ" class="hots" id="hotCars"></div>
+          <div data-page-node-id="IgsH5Zh8g6aZ9xmDFOPBR6" class="carcard" id="carCard"></div>
+        </div>
+        <div data-page-node-id="EJD77T1sFy6uk4yvoSgIkJ" id="panel"></div>
+      </div>
+    </div>
+
+    <div data-page-node-id="bAKUGG6WNHzXvyCYVi5Iu3" class="card" style="margin-top:14px">
+      <div data-page-node-id="YAHU20HDn5UA3VZyUvnkGy" class="card-hd"><span data-page-node-id="GoRAKjN82wqK01XNonjk5V"><!--pnid:XEpWDxqEY2tJL9zILBSYoI-->结论</span></div>
+      <div data-page-node-id="TQGbcm2V6B9hq5J3FrJr7a" class="verdict">
+        <div data-page-node-id="4Qv9wSwi47iL0HHC2H58sb" class="vhead">
+          <span data-page-node-id="mcc8wDtoTYVtBFIGQraz7I" class="vbadge ok" id="badge"><!--pnid:PxhCxUxVlYXbySg1OAejYl-->能上</span>
+          <span data-page-node-id="xzudf5z7qS8KivIcB1wtod" class="vtxt" id="vtxt"></span>
+        </div>
+        <div data-page-node-id="TRo7VXO0lvSiaZ2B3Jvefe" class="metrics">
+          <div data-page-node-id="7vO1lEMRfHOZ8PKGBZ7xax" class="m"><div data-page-node-id="1Je7pIYzW66e2bcPywWwxO" class="ml"><!--pnid:UYZRElj7C23rjXgAIEwzEW-->几何余量（静态）</div><div data-page-node-id="IUZRQJ0HuP5rkVO1mVEmLr" class="mv" id="mClear"><!--pnid:FfiDRoBL9vcUukgYfNTSFf-->—</div></div>
+          <div data-page-node-id="KSqt0lxapxpPwr3dBQsvBs" class="m"><div data-page-node-id="kT0bJnT6Xkc5bTMJNO9xHS" class="ml"><!--pnid:7Oi8lEXQFa15uqqTZFMGBv-->扣悬挂压缩后</div><div data-page-node-id="l4EGGrbzjRpClCPxQVgRi3" class="mv" id="mClearReal"><!--pnid:appJpWNUnmG6DmjMTM6qsl-->—</div></div>
+          <div data-page-node-id="tLRJfz8Ejq1VdFumWzF2Ln" class="m"><div data-page-node-id="iJMhuglEnrADzIXXMSpzns" class="ml"><!--pnid:WtMUfv7u5APZXqwD98Juan-->轮胎挤压比 H/R</div><div data-page-node-id="Z02vEzM5JFL9PBnBETakXj" class="mv" id="mHR"><!--pnid:LtxruyqniNMoyOYk1XS0di-->—</div></div>
+        </div>
+        <ul data-page-node-id="yhnfqWVjW0JplnCfP0qUn9" class="risk" id="riskList"></ul>
+        <div data-page-node-id="AFNicddmFpgcXhtyfWj9e1" class="notes" id="notes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer data-page-node-id="SJ1nmb3AlRblSz82BIRfwH"><!--pnid:WqORKGDDdeJ32MN8q158G2-->
+  模型说明：车辆简化为刚体，车轮按"绕路缘石棱角滚动"的几何爬升（标准台阶攀爬模型）。悬挂压缩与载重下沉已做成可调参数并默认计入 3cm，但冲击压缩量、动力打滑、胎壁变形等因素仍无法精确建模，所以结果仍偏乐观。实际用车请以慢速斜上为准，并把余量再留厚一点。
+</footer>
+</div>
+
+<script data-page-node-id="XbHGe1U3w7Oj0ZFCpE5vSG" data-pnid-children="h4qBrAkV6n6WGNEEI3o0Xf">
+//==================== 参数 ====================
+// 默认 = 海豹08 EV 905KM旗舰型（标准悬架高度）
+const DEF = { h:13.5, L:303, H:10, R:35.2, Lf:100, hb:13.5, sPos:50, comp:3 };  // cm, sPos: 0=后轴 100=前轴
+//==================== 车型数据库 ====================
+// conf: high=厂家/参数库核实  medium=主流媒体  est=未查证、按同级别估算（会在界面醒目标注）
+// est 字段列出"哪些参数是估算的"，界面会提示用户实测修正
+const CAR_DB = [
+  { id:'seal08ev', brand:'比亚迪', model:'海豹08 EV', trim:'905KM旗舰型', cat:'轿车', size:'中大型轿车', energy:'纯电',
+    h:13.5, hL:13.0, L:303, R:35.2, Lf:100, hb:13.5, air:5.5, conf:'high',
+    tire:'245/45 R19', hot:1, note:'全系标配云辇-A，最高升 55mm',
+    src:'厂家参数+多家媒体一致', est:['Lf','hb'],
+    alias:['海豹08','seal08','seal 08','海豹08ev','比亚迪海豹08','haibao08'] },
+
+  { id:'su7', brand:'小米', model:'SU7', trim:'标准版/Pro', cat:'轿车', size:'中大型轿车', energy:'纯电',
+    h:13.8, hL:12.0, L:300, R:35.2, Lf:98, hb:14.0, air:0, conf:'medium',
+    tire:'245/45 R19', hot:1, note:'空载约138~140mm，满载约120mm',
+    src:'媒体实测/官方口径', est:['Lf','hb'],
+    alias:['su7','小米su7','小米汽车','xiaomi','xiaomi su7'] },
+
+  { id:'model3', brand:'特斯拉', model:'Model 3', trim:'后驱/长续航', cat:'轿车', size:'中型轿车', energy:'纯电',
+    h:13.8, hL:null, L:287.5, R:33.4, Lf:95, hb:14.0, air:0, conf:'medium',
+    tire:'235/45 R18', hot:1, note:'离地间隙约138mm',
+    src:'媒体汇总', est:['Lf','hb','hL'],
+    alias:['model3','model 3','毛豆3','m3','特斯拉model3','tesla model 3'] },
+
+  { id:'zeekr007', brand:'极氪', model:'007', trim:'后驱版', cat:'轿车', size:'中型轿车', energy:'纯电',
+    h:14.0, hL:11.9, L:292.5, R:35.2, Lf:97, hb:14.5, air:0, conf:'medium',
+    tire:'245/45 R19', hot:0, note:'空载约140mm，载重375kg时降至119mm',
+    src:'媒体实测', est:['Lf','hb'],
+    alias:['极氪007','zeekr007','007','极客007'] },
+
+  { id:'accord', brand:'本田', model:'雅阁', trim:'燃油/混动', cat:'轿车', size:'中型轿车', energy:'燃油',
+    h:10.0, hL:null, L:283, R:32.8, Lf:95, hb:11.0, air:0, conf:'medium',
+    tire:'225/50 R17', hot:1, note:'离地仅100mm，是同级最低之一',
+    src:'太平洋汽车2022汇总', est:['Lf','hb','hL'],
+    alias:['雅阁','accord','本田雅阁'] },
+
+  { id:'corolla', brand:'丰田', model:'卡罗拉', trim:'燃油/双擎', cat:'轿车', size:'紧凑型轿车', energy:'燃油',
+    h:11.5, hL:null, L:275, R:31.6, Lf:90, hb:12.5, air:0, conf:'medium',
+    tire:'205/55 R16', hot:0, note:'离地约115mm',
+    src:'太平洋汽车2022汇总', est:['Lf','hb','hL'],
+    alias:['卡罗拉','corolla','丰田卡罗拉','雷凌'] },
+
+  { id:'sylphy', brand:'日产', model:'轩逸', trim:'经典/新款', cat:'轿车', size:'紧凑型轿车', energy:'燃油',
+    h:11.2, hL:null, L:271, R:31.6, Lf:90, hb:12.2, air:0, conf:'medium',
+    tire:'205/55 R16', hot:0, note:'离地约112mm',
+    src:'太平洋汽车2022汇总', est:['Lf','hb','hL'],
+    alias:['轩逸','sylphy','日产轩逸'] },
+
+  { id:'sealion08', brand:'比亚迪', model:'海狮08', trim:'SUV', cat:'SUV', size:'中大型SUV', energy:'纯电/插混',
+    h:16.0, hL:null, L:295, R:38.2, Lf:100, hb:19.0, air:5.0, conf:'medium',
+    tire:'255/50 R20', hot:1, note:'离地间隙约160-210mm可调（空悬）',
+    src:'媒体报道', est:['Lf','hb','L'],
+    alias:['海狮08','sealion08','海狮08ev','比亚迪海狮08'] },
+
+  // —— 以下为硬派越野，离地间隙来自太平洋汽车参数库（可信度高），其余按级别估算 ——
+  { id:'b5', brand:'方程豹', model:'豹5', trim:'越野SUV', cat:'硬派越野', size:'中型SUV', energy:'插混',
+    h:31.0, hL:null, L:285, R:38.8, Lf:95, hb:31.0, air:0, conf:'high',
+    tire:'265/65 R18', hot:0, note:'离地310mm，基本不存在上马路牙子问题',
+    src:'太平洋汽车参数库', est:['Lf','R','L'],
+    alias:['豹5','方程豹','方程豹豹5','b5'] },
+  { id:'u8', brand:'仰望', model:'U8', trim:'豪华版', cat:'硬派越野', size:'大型SUV', energy:'插混',
+    h:31.0, hL:null, L:305, R:39.5, Lf:100, hb:31.0, air:0, conf:'high',
+    tire:'275/60 R20', hot:0, note:'离地310mm',
+    src:'太平洋汽车参数库', est:['Lf','R','L'],
+    alias:['仰望u8','u8','yangwang'] },
+  { id:'h9', brand:'哈弗', model:'H9', trim:'越野版', cat:'硬派越野', size:'中大型SUV', energy:'燃油',
+    h:23.6, hL:null, L:285, R:38.8, Lf:95, hb:23.6, air:0, conf:'high',
+    tire:'265/65 R17', hot:0, note:'离地236mm',
+    src:'太平洋汽车参数库', est:['Lf','R','L'],
+    alias:['哈弗h9','h9','哈佛h9'] },
+  { id:'tank300', brand:'坦克', model:'坦克300', trim:'插混版', cat:'硬派越野', size:'紧凑型SUV', energy:'插混',
+    h:23.5, hL:null, L:275, R:38.8, Lf:93, hb:23.5, air:0, conf:'high',
+    tire:'265/65 R17', hot:1, note:'离地235mm',
+    src:'太平洋汽车参数库', est:['Lf','R','L'],
+    alias:['坦克300','tank300','坦克300新能源'] },
+  { id:'wrangler', brand:'Jeep', model:'牧马人', trim:'四门版', cat:'硬派越野', size:'中型SUV', energy:'燃油',
+    h:25.5, hL:null, L:300.8, R:38.8, Lf:95, hb:25.5, air:0, conf:'high',
+    tire:'265/70 R17', hot:0, note:'离地255mm',
+    src:'太平洋汽车参数库', est:['Lf','R'],
+    alias:['牧马人','wrangler','jeep牧马人'] },
+
+  // —— 以下热门车未查到权威离地间隙，用同级别典型值，界面会醒目标注"估算" ——
+  { id:'crv', brand:'本田', model:'CR-V', trim:'燃油/混动', cat:'SUV', size:'紧凑型SUV', energy:'燃油',
+    h:19.0, hL:null, L:270, R:36.4, Lf:93, hb:21.0, air:0, conf:'est',
+    tire:'235/60 R18', hot:1, note:'离地间隙按紧凑型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R'],
+    alias:['crv','cr v','本田crv','cr-v'] },
+  { id:'rav4', brand:'丰田', model:'RAV4荣放', trim:'燃油/双擎', cat:'SUV', size:'紧凑型SUV', energy:'燃油',
+    h:19.0, hL:null, L:269, R:36.4, Lf:93, hb:21.0, air:0, conf:'est',
+    tire:'225/60 R18', hot:1, note:'离地间隙按紧凑型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R'],
+    alias:['rav4','荣放','rav-4','丰田rav4'] },
+  { id:'tiguanl', brand:'大众', model:'途观L', trim:'330/380', cat:'SUV', size:'中型SUV', energy:'燃油',
+    h:18.0, hL:null, L:279, R:37.1, Lf:96, hb:20.0, air:0, conf:'est',
+    tire:'235/55 R19', hot:0, note:'离地间隙按中型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R'],
+    alias:['途观l','tiguan','途观','大众途观l'] },
+  { id:'h6', brand:'哈弗', model:'H6', trim:'国潮/三代', cat:'SUV', size:'紧凑型SUV', energy:'燃油',
+    h:18.0, hL:null, L:273, R:36.4, Lf:93, hb:20.0, air:0, conf:'est',
+    tire:'225/60 R18', hot:0, note:'离地间隙按紧凑型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R'],
+    alias:['哈弗h6','h6','哈佛h6'] },
+  { id:'modely', brand:'特斯拉', model:'Model Y', trim:'后驱/长续航', cat:'SUV', size:'中型SUV', energy:'纯电',
+    h:17.0, hL:null, L:289, R:37.1, Lf:96, hb:19.0, air:0, conf:'est',
+    tire:'255/45 R19', hot:1, note:'离地间隙按中型纯电SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R'],
+    alias:['modely','model y','毛豆y','特斯拉modely'] },
+  { id:'songplus', brand:'比亚迪', model:'宋PLUS', trim:'DM-i/EV', cat:'SUV', size:'紧凑型SUV', energy:'插混',
+    h:18.0, hL:null, L:276.5, R:36.4, Lf:93, hb:20.0, air:0, conf:'est',
+    tire:'235/50 R19', hot:1, note:'离地间隙按紧凑型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','R'],
+    alias:['宋plus','宋PLUS','songplus','比亚迪宋plus'] },
+  { id:'l6', brand:'理想', model:'理想L6', trim:'Pro/Max', cat:'SUV', size:'中大型SUV', energy:'增程',
+    h:18.0, hL:null, L:292, R:37.1, Lf:98, hb:20.0, air:4.0, conf:'est',
+    tire:'255/50 R20', hot:1, note:'配空气悬架，离地按中大型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R','air'],
+    alias:['理想l6','l6','lixiang'] },
+  { id:'m7', brand:'问界', model:'问界M7', trim:'Plus/Max', cat:'SUV', size:'中大型SUV', energy:'增程',
+    h:18.0, hL:null, L:282, R:37.1, Lf:98, hb:20.0, air:4.0, conf:'est',
+    tire:'255/50 R20', hot:0, note:'部分版本配空悬，离地按中大型SUV典型值估算',
+    src:'同级估算（未查证）', est:['h','Lf','hb','L','R','air'],
+    alias:['问界m7','m7','华为m7','问界'] },
+
+  // —— 通用参考（非具体车型）——
+  { id:'suv18', brand:'通用参考', model:'城市SUV', trim:'离地18cm', cat:'参考', size:'中型SUV', energy:'—',
+    h:18.0, hL:null, L:280, R:36.4, Lf:96, hb:24.0, air:0, conf:'est',
+    tire:'235/55 R19', hot:0, note:'典型城市SUV基准值，用于对比',
+    src:'假设值', est:['all'], alias:['suv','城市suv','通用suv'] }
+];
+let P = Object.assign({}, DEF);
+const XC = 5.0;                       // 路缘石棱角的世界 x 坐标 (m)
+const LR = 1.05;                      // 后悬 (m)，固定
+
+const M = v => v/100;                 // cm -> m
+const HE = () => Math.max(0.02, M(P.h) - M(P.comp));   // 扣除悬挂压缩/载重下沉后的有效离地间隙
+let startX = 0, endX = 0;
+function calcRange(){ startX = XC - M(P.L) - 2.6; endX = XC + 1.9; }
+calcRange();
+
+//==================== 几何 ====================
+// 轮心高度：轮心沿以棱角 (XC,H) 为圆心、半径 R 的圆弧爬升
+function wheelY(xw, H, R){
+  if(H <= 1e-6) return R;
+  if(H >= R) return R;                       // 台阶不低于轮胎半径时爬不上去，钳制
+  const d = Math.sqrt(Math.max(0, 2*R*H - H*H));
+  if(xw <= XC - d) return R;                 // 还在平地上
+  if(xw >= XC)     return H + R;             // 已完全上到台阶顶面
+  return H + Math.sqrt(Math.max(0, R*R - (xw-XC)*(xw-XC)));  // 绕棱角爬升中
+}
+
+// 车身姿态：用后轮中心 x 驱动，迭代收敛出俯仰角与前后轮位置
+function pose(rx){
+  const L = M(P.L), R = M(P.R), H = M(P.H);
+  let Lh = L, fx=0, fy=0, ry=0, a=0;
+  for(let i=0;i<5;i++){
+    fx = rx + Lh;
+    fy = wheelY(fx, H, R);
+    ry = wheelY(rx, H, R);
+    a  = Math.atan2(fy - ry, Lh);
+    Lh = L * Math.cos(a);
+  }
+  return {rx, fx, fy, ry, a, Lh};
+}
+
+// 车身坐标系(原点=前轮中心, x向前, y向上) -> 世界坐标
+function bp(p, bx, by){
+  const c = Math.cos(p.a), s = Math.sin(p.a);
+  return { x: p.fx + bx*c - by*s, y: p.fy + bx*s + by*c };
+}
+
+// 底盘最低点（距后轴 sPos% 处）
+function lowPt(p){
+  const L = M(P.L);
+  const bx = -L * (1 - P.sPos/100);
+  return bp(p, bx, HE() - M(P.R));
+}
+// 前保险杠下沿
+function bumperPt(p){ return bp(p, M(P.Lf), M(P.hb) - M(P.R)); }
+
+// 棱角(XC)处底盘高度 —— 托底判定用
+function curbChassisY(p){
+  if(!(p.rx < XC && p.fx > XC)) return null;   // 棱角不在前后轮之间
+  const t = (XC - p.rx)/(p.fx - p.rx);
+  const wl = p.ry + t*(p.fy - p.ry);
+  return wl - M(P.R) + HE();
+}
+
+//==================== 预扫描：找出全过程中的最危险状态 ====================
+let SC = null;
+function doScan(){
+  const H = M(P.H), R = M(P.R);
+  const out = { minClear: Infinity, minBumper: Infinity, bumperHit:false,
+                climbable: H < R, hr: H/R };
+  for(let rx = startX; rx <= endX; rx += 0.008){
+    const p = pose(rx);
+    const cy = curbChassisY(p);
+    if(cy !== null && cy - H < out.minClear) out.minClear = cy - H;
+    const b = bumperPt(p);
+    if(b.x >= XC){
+      if(b.y - H < out.minBumper) out.minBumper = b.y - H;
+      if(b.y < H) out.bumperHit = true;
+    }
+  }
+  if(!isFinite(out.minClear)) out.minClear = HE();   // 全程棱角都没落在轴距内
+  return out;
+}
+// 扫两遍：staticClear = 不扣压缩的纸面几何值；minClear = 扣掉压缩后的实用值
+function scan(){
+  const c = P.comp;
+  P.comp = 0;   const st = doScan();
+  P.comp = c;   const re = doScan();
+  re.staticClear = st.minClear;
+  SC = re;
+}
+
+//==================== 动态求两个临界高度（粗扫，带缓存） ====================
+let limitCache = {key:'', val:null};
+function findLimits(){
+  const saveH = P.H, saveC = P.comp, rxStep = 0.03;
+  const evalH = (H, comp)=>{
+    P.H = H; P.comp = comp;
+    let mc = Infinity;
+    for(let rx = startX; rx <= endX; rx += rxStep){
+      const cy = curbChassisY(pose(rx));
+      if(cy !== null) mc = Math.min(mc, cy - M(H));
+    }
+    return isFinite(mc) ? mc : HE();
+  };
+  let geoCrit = null, safeMax = null;
+  for(let H = 4; H <= 40; H += 1){
+    if(geoCrit === null && evalH(H, 0) < 0) geoCrit = H - 1;   // 几何归零点
+    if(evalH(H, saveC) >= 0.03) safeMax = H;                   // 扣压缩后仍留 3cm
+    if(geoCrit !== null && H > geoCrit) break;
+  }
+  P.H = saveH; P.comp = saveC;
+  return {geoCrit, safeMax};
+}
+function limits(){
+  const key = [P.H,P.h,P.R,P.comp,P.L,P.sPos].join('|');
+  if(limitCache.key !== key) limitCache = {key, val: findLimits()};
+  return limitCache.val;
+}
+
+//==================== 绘制：侧视图 ====================
+const cv = document.getElementById('scene'), ctx = cv.getContext('2d');
+let VW=0, VH=0, sc=1, ox=0, oy=0;
+
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const r = cv.getBoundingClientRect();
+  VW = r.width; VH = r.height;
+  cv.width = VW*dpr; cv.height = VH*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const worldW = 10.0, worldH = 2.75;
+  sc = Math.min(VW/worldW, VH/worldH);
+  ox = (VW - worldW*sc)/2 - (XC-6.6)*sc;
+  oy = VH - 0.42*sc;
+  draw();
+}
+const SX = x => ox + x*sc;
+const SY = y => oy - y*sc;
+
+function body(Lf, hb, h, R, L, sPos){
+  // 车身轮廓（车身坐标，原点前轮中心），单位 m
+  const bottom = h - R, nose = hb - R;      // 底盘基准 / 保险杠下沿（相对轮心）
+  const tail = -L - LR, mid = -L*(1-sPos/100);
+  return [
+    [Lf, nose], [0.18, bottom+0.035], [mid, bottom], [-L+0.18, bottom+0.035], [tail+0.05, nose+0.02],
+    [tail, 0.55], [tail+0.12, 0.86], [-L-0.55, 0.94], [-L-1.15, 1.33], [-0.55, 1.35],
+    [0.32, 0.90], [Lf-0.20, 0.78], [Lf-0.02, 0.60]
+  ];
+}
+
+function draw(){
+  if(!SC) return;
+  const p = pose(rearX);
+  const H = M(P.H), R = M(P.R), L = M(P.L);
+  ctx.clearRect(0,0,VW,VH);
+
+  // 天空渐变
+  const g = ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0,'#12151b'); g.addColorStop(1,'#0d1015');
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+
+  // 地面（马路）
+  ctx.fillStyle = '#1a1e26'; ctx.fillRect(0, SY(0), SX(XC), VH-SY(0));
+  // 路缘石
+  ctx.fillStyle = '#2b3140';
+  ctx.fillRect(SX(XC), SY(H), Math.max(0, VW-SX(XC)), SY(0)-SY(H));
+  ctx.fillStyle = '#394054';
+  ctx.fillRect(SX(XC), SY(H), Math.max(0, VW-SX(XC)), Math.max(2, 3));
+  // 地面线
+  ctx.strokeStyle = '#4a5468'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(0, SY(0)); ctx.lineTo(SX(XC), SY(0));
+  ctx.moveTo(SX(XC), SY(H)); ctx.lineTo(VW, SY(H)); ctx.stroke();
+  // 棱角
+  ctx.fillStyle = '#6b7794';
+  ctx.beginPath(); ctx.arc(SX(XC), SY(H), 3, 0, 7); ctx.fill();
+
+  // ---- 车 ----
+  const pts = body(M(P.Lf), M(P.hb), HE(), R, L, P.sPos).map(q => bp(p, q[0], q[1]));
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(SX(pts[0].x), SY(pts[0].y));
+  for(let i=1;i<pts.length;i++) ctx.lineTo(SX(pts[i].x), SY(pts[i].y));
+  ctx.closePath();
+  const bg = ctx.createLinearGradient(0, SY(1.5), 0, SY(0));
+  bg.addColorStop(0,'#5c9be0'); bg.addColorStop(1,'#33608f');
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.strokeStyle = '#8fc0ef'; ctx.lineWidth = 1.6; ctx.stroke();
+  // 车窗
+  ctx.save(); ctx.clip();
+  ctx.fillStyle = 'rgba(15,20,30,.62)';
+  const w1 = bp(p, 0.30, 0.92), w2 = bp(p, -0.60, 1.30), w3 = bp(p, -L-1.10, 1.28), w4 = bp(p, -L-0.50, 0.90);
+  ctx.beginPath();
+  ctx.moveTo(SX(w1.x),SY(w1.y)); ctx.lineTo(SX(w2.x),SY(w2.y));
+  ctx.lineTo(SX(w3.x),SY(w3.y)); ctx.lineTo(SX(w4.x),SY(w4.y)); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // 车轮
+  const wheels = [ {x:p.fx,y:p.fy,hot: p.fy > R+0.004}, {x:p.rx,y:p.ry,hot: p.ry > R+0.004} ];
+  wheels.forEach(w=>{
+    if(w.hot){ ctx.fillStyle='rgba(255,176,32,.16)';
+      ctx.beginPath(); ctx.arc(SX(w.x),SY(w.y),R*sc+6,0,7); ctx.fill(); }
+    ctx.beginPath(); ctx.arc(SX(w.x),SY(w.y),R*sc,0,7);
+    ctx.fillStyle='#15181f'; ctx.fill();
+    ctx.strokeStyle= w.hot ? '#ffb020' : '#79839a'; ctx.lineWidth=2.2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(SX(w.x),SY(w.y),R*sc*0.42,0,7);
+    ctx.strokeStyle='#4a5468'; ctx.lineWidth=1.4; ctx.stroke();
+  });
+  ctx.restore();
+
+  // ---- 标注 ----
+  const low = lowPt(p), bum = bumperPt(p);
+  const cy = curbChassisY(p);
+  const dash = (x1,y1,x2,y2,col)=>{
+    ctx.save(); ctx.setLineDash([4,3]); ctx.strokeStyle=col; ctx.lineWidth=1.3;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore();
+  };
+  const arrow = (x,y1,y2,col,label)=>{ // 竖直双箭头 + 标签
+    ctx.strokeStyle=col; ctx.lineWidth=1.3;
+    ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y2); ctx.stroke();
+    [y1,y2].forEach((yy,i)=>{
+      const d = i===0? 5 : -5;
+      ctx.beginPath(); ctx.moveTo(x-3.5,yy+d); ctx.lineTo(x,yy); ctx.lineTo(x+3.5,yy+d); ctx.stroke();
+    });
+    ctx.fillStyle=col; ctx.font='600 11px system-ui'; ctx.textAlign='left';
+    ctx.fillText(label, x+6, (y1+y2)/2+4);
+  };
+
+  // 棱角 -> 底盘 垂直余量（棱角在轴距内时）
+  let clearNow = null;
+  if(cy !== null){
+    clearNow = cy - H;
+    const col = clearNow > 0.05 ? '#3ddc97' : (clearNow > 0 ? '#ffb020' : '#ff5c5c');
+    dash(SX(XC), SY(H), SX(XC), SY(cy), col);
+    ctx.fillStyle=col; ctx.font='600 11.5px system-ui'; ctx.textAlign='center';
+    ctx.fillText('余量 '+(clearNow*100).toFixed(1)+'cm', SX(XC), SY(cy)-7);
+    ctx.beginPath(); ctx.arc(SX(XC), SY(cy), 3.2, 0, 7); ctx.fill();
+  }
+  // 台阶高度标注
+  arrow(SX(XC)+34, SY(0), SY(H), '#8b93a7', H*100+'cm');
+  // 离地间隙标注（车在平地段时更清晰）
+  if(p.rx + L < XC - 0.2){
+    arrow(SX(p.rx)-30, SY(0), SY(low.y), (low.y>0?'#8b93a7':'#ff5c5c'), '离地 '+(low.y*100).toFixed(0)+'cm');
+  }
+  // 底盘最低点
+  ctx.beginPath(); ctx.arc(SX(low.x), SY(low.y), 4, 0, 7);
+  ctx.fillStyle = (cy!==null && cy-H<0) ? '#ff5c5c' : '#3ddc97'; ctx.fill();
+  // 保险杠点
+  const bHit = (bum.x >= XC && bum.y < H);
+  ctx.beginPath(); ctx.arc(SX(bum.x), SY(bum.y), 4, 0, 7);
+  ctx.fillStyle = bHit ? '#ff5c5c' : '#3ddc97'; ctx.fill();
+  if(bHit){
+    ctx.fillStyle='#ff5c5c'; ctx.font='700 13px system-ui'; ctx.textAlign='center';
+    ctx.fillText('⚠ 保险杠刮到路缘石', SX(bum.x), SY(bum.y)-13);
+  }
+  // 底盘托底警示
+  if(cy !== null && cy - H < 0){
+    ctx.fillStyle='#ff5c5c'; ctx.font='700 13px system-ui'; ctx.textAlign='center';
+    ctx.fillText('⚠ 底盘托底', SX(XC), SY(H)+22);
+  }
+
+  // 底部图例
+  ctx.font='11px system-ui'; ctx.textAlign='left';
+  ctx.fillStyle='#3ddc97'; ctx.fillText('● 底盘最低点', 12, VH-30);
+  ctx.fillStyle='#79839a'; ctx.fillText('● 保险杠下沿', 12, VH-15);
+  ctx.fillStyle = P.H/Math.max(1,P.R) > 0.3 ? '#ffb020' : '#8b93a7';
+  ctx.textAlign='right';
+  ctx.fillText('轮胎挤压比 H/R = '+(P.H/P.R).toFixed(2)+(P.H/P.R>0.3?'（偏高，伤胎壁）':'（正常）'), VW-12, VH-15);
+
+  updateHUD(p, clearNow, cy, bHit);
+}
+
+//==================== HUD ====================
+function phaseOf(p){
+  const R=M(P.R), H=M(P.H), d=Math.sqrt(Math.max(0,2*R*H-H*H));
+  if(p.fx < XC - d) return ['准备接近','ok'];
+  if(p.fx < XC)     return ['前轮爬台阶中','warn'];
+  if(p.rx < XC - d) return ['前轮已上，后轮未到','warn'];
+  if(p.rx < XC)     return ['后轮爬台阶中','warn'];
+  return ['完全上到路缘石','ok'];
+}
+function updateHUD(p, clearNow, cy, bHit){
+  const [ph, lv] = phaseOf(p);
+  const t = document.getElementById('phaseTag');
+  t.textContent = ph; t.className = 'tag '+lv;
+  const rows = [
+    ['车身俯仰角', (p.a*180/Math.PI).toFixed(1)+'°'],
+    ['前轮高度',   (p.fy*100).toFixed(1)+'cm'],
+    ['后轮高度',   (p.ry*100).toFixed(1)+'cm'],
+    ['底盘最低点', (lowPt(p).y*100).toFixed(1)+'cm'],
+    ['保险杠下沿', (bumperPt(p).y*100).toFixed(1)+'cm'],
+    ['当前余量', clearNow===null ? '—' : (clearNow*100).toFixed(1)+'cm']
+  ];
+  document.getElementById('hud').innerHTML = rows.map(r=>
+    '<div><span class="k">'+r[0]+'</span><b>'+r[1]+'</b></div>').join('');
+}
+
+//==================== 俯视图（斜着上） ====================
+const tv = document.getElementById('topview'), tctx = tv.getContext('2d');
+let TW=0, TH=0, tvT=0;
+function tvResize(){
+  const dpr = Math.min(window.devicePixelRatio||1,2);
+  const r = tv.getBoundingClientRect();
+  TW = r.width; TH = r.height;
+  tv.width = TW*dpr; tv.height = TH*dpr;
+  tctx.setTransform(dpr,0,0,dpr,0,0);
+}
+function drawTop(){
+  tctx.clearRect(0,0,TW,TH);
+  tctx.fillStyle='#12151b'; tctx.fillRect(0,0,TW,TH);
+  const curbY = TH*0.44;
+  // 上半 = 路缘石顶面
+  tctx.fillStyle='#232936'; tctx.fillRect(0,0,TW,curbY);
+  tctx.fillStyle='#1a1e26'; tctx.fillRect(0,curbY,TW,TH-curbY);
+  tctx.strokeStyle='#6b7794'; tctx.lineWidth=2;
+  tctx.beginPath(); tctx.moveTo(0,curbY); tctx.lineTo(TW,curbY); tctx.stroke();
+  tctx.fillStyle='#8b93a7'; tctx.font='11px system-ui'; tctx.textAlign='left';
+  tctx.fillText('路缘石顶面', 10, 16);
+  tctx.fillText('马路', 10, TH-10);
+
+  // 车：斜 35° 向上跨越
+  const L=M(P.L), twv=1.66;
+  const sc2 = Math.min(TW/7.2, TH/6.2);
+  const prog = (Math.sin(tvT*0.55)+1)/2;                 // 0..1 往复
+  const cy = TH*0.92 - prog*(TH*0.92 - TH*0.02);
+  const cx = TW*0.5;
+  const th = -Math.PI/2 + 0.61;                            // 车头朝上偏 35°
+  const rot = (x,y)=>({ x: cx + (x*Math.cos(th) - y*Math.sin(th))*sc2,
+                        y: cy + (x*Math.sin(th) + y*Math.cos(th))*sc2 });
+  const half=[L/2, twv/2];
+  const corners = [[-half[0],-half[1]],[half[0],-half[1]],[half[0],half[1]],[-half[0],half[1]]].map(c=>rot(c[0],c[1]));
+  tctx.beginPath();
+  tctx.moveTo(corners[0].x,corners[0].y);
+  corners.slice(1).forEach(c=>tctx.lineTo(c.x,c.y));
+  tctx.closePath();
+  tctx.fillStyle='rgba(92,155,224,.28)'; tctx.fill();
+  tctx.strokeStyle='#5c9be0'; tctx.lineWidth=1.8; tctx.stroke();
+
+  // 四轮：FL FR RL RR
+  const wheels = [
+    {n:'左前', x: L/2-0.35, y: twv/2}, {n:'右前', x: L/2-0.35, y:-twv/2},
+    {n:'左后', x:-L/2+0.35, y: twv/2}, {n:'右后', x:-L/2+0.35, y:-twv/2}
+  ];
+  let onCount=0, seq=[];
+  wheels.forEach(w=>{
+    const q = rot(w.x, w.y);
+    const on = q.y < curbY;
+    if(on) onCount++;
+    tctx.beginPath(); tctx.arc(q.x,q.y,6.5,0,7);
+    tctx.fillStyle = on ? '#3ddc97' : '#394054'; tctx.fill();
+    tctx.strokeStyle = on ? '#3ddc97' : '#79839a'; tctx.lineWidth=1.6; tctx.stroke();
+    tctx.fillStyle = on ? '#3ddc97' : '#8b93a7';
+    tctx.font='600 10px system-ui'; tctx.textAlign='center';
+    tctx.fillText(w.n, q.x, q.y-10);
+  });
+  const tag = document.getElementById('tvTag');
+  tag.textContent = onCount===0 ? '准备接近' : (onCount===4 ? '四轮全部上完' : '同时 '+onCount+' 轮在爬');
+  tag.className = 'tag ' + (onCount<=1 ? 'ok' : (onCount===4?'ok':'warn'));
+}
+
+//==================== 动画循环 ====================
+let rearX = startX, playing = true, speed = 0.8, last = 0;
+function loop(ts){
+  const dt = last ? Math.min((ts-last)/1000, 0.05) : 0;
+  last = ts;
+  if(playing){
+    rearX += speed*dt;
+    if(rearX > endX){ rearX = endX; playing = false; document.getElementById('btnPlay').textContent='播放'; }
+    document.getElementById('seek').value = Math.round((rearX-startX)/(endX-startX)*1000);
+  }
+  tvT += dt;
+  draw(); drawTop();
+  requestAnimationFrame(loop);
+}
+
+//==================== 参数面板 ====================
+const FIELDS = [
+  {k:'H', nm:'路缘石高度', min:5, max:40, step:1, hint:'标准路缘石一般 10~15cm'},
+  {k:'h', nm:'最小离地间隙', min:8, max:30, step:0.5, hint:'底盘最低点到地面的静态值'},
+  {k:'comp', nm:'悬挂压缩+载重下沉', min:0, max:8, step:0.5, hint:'冲击会吃掉余量，慢速约2~3cm'},
+  {k:'L', nm:'轴距', min:240, max:340, step:1, hint:'对上台阶几乎没有影响'},
+  {k:'R', nm:'轮胎半径', min:25, max:45, step:0.1, hint:'245/45R19 约 35.2cm'},
+  {k:'Lf',nm:'前悬长度', min:70, max:130, step:5, hint:'前轮中心到车头'},
+  {k:'hb',nm:'前唇/保险杠下沿高', min:10, max:50, step:0.5, hint:'低趴轿车常是最低点，决定会不会剐'},
+  {k:'sPos',nm:'底盘最低点位置', min:0, max:100, step:5, hint:'0=后轴 100=前轴'}
+];
+function buildPanel(){
+  const el = document.getElementById('panel');
+  el.innerHTML = FIELDS.map(f=>{
+    const v = P[f.k];
+    const disp = f.k==='sPos' ? (v<50?('偏后轴 '+v+'%'):(v>50?('偏前轴 '+(100-v)+'%'):'正中间'))
+                              : v+' cm';
+    return '<div class="pgroup"><div class="prow"><span class="nm">'+f.nm+'</span>'+
+      '<span class="vl" id="v_'+f.k+'">'+disp+'</span></div>'+
+      '<div class="prow"><span class="hint">'+f.hint+'</span></div>'+
+      '<input type="range" id="r_'+f.k+'" min="'+f.min+'" max="'+f.max+'" step="'+f.step+'" value="'+v+'"></div>';
+  }).join('');
+  FIELDS.forEach(f=>{
+    document.getElementById('r_'+f.k).addEventListener('input', e=>{
+      P[f.k] = parseFloat(e.target.value);
+      carDirty = true;                        // 手动改过参数
+      const v = P[f.k];
+      const disp = f.k==='sPos' ? (v<50?('偏后轴 '+v+'%'):(v>50?('偏前轴 '+(100-v)+'%'):'正中间')) : v+' cm';
+      document.getElementById('v_'+f.k).textContent = disp;
+      calcRange();
+      if(rearX < startX) rearX = startX;
+      if(rearX > endX) rearX = endX;
+      scan(); draw(); updateVerdict();
+      if(curCar) renderCarCard();
+    });
+  });
+}
+
+//==================== 结论 ====================
+function updateVerdict(){
+  const s = SC, lim = limits();
+  const hr = s.hr;
+  const b = document.getElementById('badge');
+  let level, txt;
+  if(!s.climbable){
+    level='bad';
+    txt='路缘石高 '+P.H+'cm 已接近/超过轮胎半径 '+P.R+'cm，静止状态下前轮滚不上去，会直接顶住路缘石。';
+  } else if(s.bumperHit){
+    level='bad';
+    txt='前保险杠下沿会剐到路缘石。几何上过不去，别硬上。';
+  } else if(s.minClear < 0){
+    level='bad';
+    txt='扣掉悬挂压缩后底盘余量是负的（'+(s.minClear*100).toFixed(1)+'cm）——纸面几何上过得去，实际一压就蹭。别上。';
+  } else if(s.minClear < 0.015){
+    level='bad';
+    txt='扣掉悬挂压缩后只剩 '+(s.minClear*100).toFixed(1)+'cm，而上台阶必然伴随冲击，这点余量不够填。基本必蹭，别上。';
+  } else if(s.minClear < 0.03){
+    level='warn';
+    txt='扣掉悬挂压缩后只剩 '+(s.minClear*100).toFixed(1)+'cm，风险明显大于收益。除非万不得已，否则别上。';
+  } else if(s.minClear < 0.05){
+    level='warn';
+    txt='扣掉悬挂压缩后剩 '+(s.minClear*100).toFixed(1)+'cm，可以上但必须斜着、慢速、空载。满载或稍快就会蹭。';
+  } else if(hr > 0.42){
+    level='warn';
+    txt='底盘过得去（余量 '+(s.minClear*100).toFixed(1)+'cm），但路缘石相对轮胎太高，硬挤上很可能伤胎壁。强烈建议斜着慢上，或者干脆别上。';
+  } else if(hr > 0.33){
+    level='warn';
+    txt='底盘过得去（余量 '+(s.minClear*100).toFixed(1)+'cm），但路缘石相对轮胎偏高，正面硬上容易伤胎壁。务必斜着慢上。';
+  } else {
+    level='ok';
+    txt='底盘余量充足（'+(s.minClear*100).toFixed(1)+'cm），几何上安全。注意操作方式——伤胎风险远大于磕底盘风险。';
+  }
+  b.textContent = level==='ok' ? '能上' : (level==='warn' ? '能上但要注意' : '上不去 / 会磕');
+  b.className = 'vbadge '+level;
+  document.getElementById('vtxt').textContent = txt;
+  const geoEl = document.getElementById('mClear'), realEl = document.getElementById('mClearReal');
+  geoEl.textContent = (isFinite(s.staticClear)? (s.staticClear*100).toFixed(1)+' cm' : '—');
+  geoEl.style.color = s.staticClear>0.05?'var(--ok)':(s.staticClear>0?'var(--warn)':'var(--bad)');
+  realEl.textContent = (isFinite(s.minClear)? (s.minClear*100).toFixed(1)+' cm' : '—');
+  realEl.style.color = s.minClear>0.05?'var(--ok)':(s.minClear>0.02?'var(--warn)':'var(--bad)');
+  const hrEl = document.getElementById('mHR');
+  hrEl.textContent = hr.toFixed(2);
+  hrEl.style.color = hr>0.42?'var(--bad)':(hr>0.30?'var(--warn)':'var(--ok)');
+
+  // 风险清单
+  const li = [];
+  const geoCm = s.staticClear*100, realCm = s.minClear*100;
+  li.push(
+    s.minClear < 0      ? ['hi','底盘：几何余量 '+geoCm.toFixed(1)+'cm，扣掉压缩后 '+realCm.toFixed(1)+'cm → 会蹭']
+  : s.minClear < 0.015  ? ['hi','底盘：扣压缩后仅 '+realCm.toFixed(1)+'cm，冲击一来必蹭']
+  : s.minClear < 0.03   ? ['mid','底盘：扣压缩后只剩 '+realCm.toFixed(1)+'cm，风险高，不建议']
+  : s.minClear < 0.05   ? ['mid','底盘：扣压缩后剩 '+realCm.toFixed(1)+'cm，需斜着慢上+空载']
+  :                       ['lo','底盘：几何余量 '+geoCm.toFixed(1)+'cm，扣压缩后 '+realCm.toFixed(1)+'cm，安全']);
+  li.push(s.bumperHit ? ['hi','前唇/保险杠：会剐到路缘石']
+                      : ['lo','前唇/保险杠：余量 '+(s.minBumper*100).toFixed(1)+'cm，安全']);
+  if(P.h <= 16) li.push(['mid','电池包：纯电车底盘最低处就是电池，托底可能伤及壳体，代价远高于油车油底壳']);
+  li.push(hr>0.42 ? ['hi','轮胎：H/R='+hr.toFixed(2)+'，胎壁挤压严重，正面硬上有鼓包/爆胎风险']
+        : (hr>0.25 ? ['mid','轮胎：H/R='+hr.toFixed(2)+'，有挤压，务必斜着慢上，别正面顶']
+                   : ['lo','轮胎：H/R='+hr.toFixed(2)+'，挤压轻微，正常操作即可']));
+  li.push(['lo','悬挂/转向：慢速斜上可把冲击降到最低，猛冲伤减震与转向机']);
+  document.getElementById('riskList').innerHTML =
+    li.map(x=>'<li class="'+x[0]+'">'+x[1]+'</li>').join('');
+
+  // 说明
+  document.getElementById('notes').innerHTML =
+    '<b>离地间隙不是"能上的上限"，而是"不能碰的红线"：</b>几何上真正托底的临界点是台阶高 '+
+    '<b>'+(lim.geoCrit===null?'—':lim.geoCrit+'cm')+'</b>'+
+    '（比 '+P.h+'cm 的离地间隙还高一点——轮胎是圆的，接触棱角时会替你垫高一些），'+
+    '但那一刻余量已经是 0，等于擦着过。<br>'+
+    '扣掉 '+P.comp+'cm 悬挂压缩后，实用的安全上限是 '+
+    '<b>'+(lim.safeMax===null?'几乎上不了任何台阶':lim.safeMax+'cm')+'</b>'+
+    (lim.safeMax!==null ? '，约合离地间隙的 '+(lim.safeMax/P.h*100).toFixed(0)+'%。' : '。')+'<br><br>'+
+    '<b>最危险的一刻不在车中间，而在后轮刚碰到路缘石时：</b>那时棱角紧挨后轮，'+
+    '该处底盘高度就是平地的离地间隙，几何余量 ≈ 离地间隙 − 台阶高 = <b>'+(s.staticClear*100).toFixed(1)+'cm</b>。'+
+    '所以"18cm 对 10cm"这个直觉对比，方向是对的。<br><br>'+
+    '<b>为什么轴距几乎不影响上马路牙子：</b>上台阶是"前轮先爬上去、车头被抬高"的过程，'+
+    '前轮上台阶后底盘中点反而跟着抬高（约抬高半个台阶高度），所以越长的轴距在这里不吃亏。<br>'+
+    '轴距真正影响的是<b>跨越凸起（坡顶、减速带尖顶）</b>，那个指标叫纵向通过角：'+
+    '<b>'+(2*Math.atan(2*HE()/M(P.L))*180/Math.PI).toFixed(1)+'°</b>（已扣除压缩，按你当前参数）。'+
+    '这个角越小，骑过路中间凸起的坎就越容易托底——但这跟马路牙子是两回事。';
+}
+
+//==================== 交互 ====================
+document.getElementById('btnPlay').onclick = function(){
+  if(rearX >= endX) rearX = startX;
+  playing = !playing;
+  this.textContent = playing ? '暂停' : '播放';
+};
+document.getElementById('btnReplay').onclick = ()=>{
+  rearX = startX; playing = true; document.getElementById('btnPlay').textContent='暂停';
+};
+document.getElementById('seek').addEventListener('input', e=>{
+  rearX = startX + (endX-startX)*(+e.target.value/1000);
+  playing = false; document.getElementById('btnPlay').textContent='播放'; draw();
+});
+document.querySelectorAll('.seg button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); speed = +b.dataset.sp;
+  };
+});
+//==================== 车型搜索与套用 ====================
+let curCar = null, curLift = false, carDirty = false;
+const norm = s => (s||'').toLowerCase().replace(/\s+/g,'');
+const cInput = document.getElementById('carInput');
+const cList  = document.getElementById('carList');
+const cClear = document.getElementById('carClear');
+
+function searchCars(q){
+  q = norm(q);
+  if(!q) return [];
+  return CAR_DB.filter(c =>
+    norm([c.brand, c.model, c.trim, (c.alias||[]).join(' ')].join(' ')).indexOf(q) >= 0);
+}
+
+function applyCar(c, lift){
+  curCar = c; curLift = !!lift; carDirty = false;
+  const dh = (lift && c.air) ? c.air : 0;
+  P.h  = +(c.h  + dh).toFixed(1);
+  P.L  = c.L;  P.R = c.R;  P.Lf = c.Lf;
+  P.hb = +(c.hb + dh).toFixed(1);
+  calcRange(); rearX = startX;
+  buildPanel(); scan(); draw(); updateVerdict(); renderCarCard();
+}
+
+function renderCarCard(){
+  const el = document.getElementById('carCard');
+  if(!curCar){ el.className='carcard'; el.innerHTML=''; return; }
+  const c = curCar, dh = (curLift && c.air) ? c.air : 0;
+  const confTxt = c.conf==='high' ? '高（参数库核实）'
+                : (c.conf==='medium' ? '中（媒体数据）' : '估算（未查证）');
+  const isEst = c.conf === 'est';
+  let btns = '';
+  if(c.air > 0){
+    btns = '<div class="cb">'+
+      '<button data-lift="0" class="'+(curLift?'':'on')+'">标准高度</button>'+
+      '<button data-lift="1" class="'+(curLift?'on':'')+'">升到最高 +'+c.air+'cm</button></div>';
+  }
+  const estTxt = (c.est && c.est.length && !isEst) ? ('　估算字段：'+c.est.join('、')) : '';
+  const title = c.model.indexOf(c.brand) >= 0 ? c.model : (c.brand+' '+c.model);  // 避免"理想 理想L6"重复
+  el.className = 'carcard show';
+  el.innerHTML =
+    '<div class="ct">'+title+' <span style="color:var(--muted);font-weight:400">'+c.trim+'</span></div>'+
+    '<div class="cs">'+c.size+' · '+c.energy+' · 数据可信度：'+confTxt+'</div>'+
+    '<div class="cl">离地间隙 <b>'+(c.h+dh).toFixed(1)+'cm</b>'+
+      (c.hL ? ('（满载 '+c.hL.toFixed(1)+'cm）') : '')+
+      ' · 轴距 <b>'+c.L+'cm</b><br>轮胎 <b>'+c.tire+'</b>（半径 '+c.R+'cm）'+
+      (c.note ? ('<br>'+c.note) : '')+'</div>'+
+    btns +
+    '<div class="cw'+(isEst?'':' info')+'">'+
+      (isEst
+        ? '⚠ 这款车的离地间隙<b>没查到权威数据</b>，上面是同级别典型值估算。建议用卷尺量一下自己车底盘最低点，再到下面滑块手动修正。'
+        : 'ℹ 来源：'+c.src+estTxt)+
+      (carDirty ? '<br>⚠ 你手动改过参数，当前值已不等于该车型原数据。' : '')+
+    '</div>';
+  el.querySelectorAll('.cb button').forEach(b=>{
+    b.onclick = ()=>applyCar(c, b.dataset.lift==='1');
+  });
+}
+
+function renderList(q){
+  const list = q ? searchCars(q) : CAR_DB.filter(c=>c.hot);
+  if(!list.length){
+    cList.innerHTML = '<div class="cempty">库里没有「'+cInput.value+'」。<br>'+
+      '已收录 '+CAR_DB.length+' 款，你可以：<br>'+
+      '① 换个叫法试试（如 Model Y / CR-V / 坦克300）<br>'+
+      '② 直接在下面手动调「最小离地间隙」等参数</div>';
+    cList.classList.add('show');
+    return;
+  }
+  cList.innerHTML = list.map(c=>{
+    const tag = c.conf==='est' ? '<span style="color:var(--warn)">估算</span>'
+              : (c.conf==='high' ? '<span style="color:var(--ok)">已核实</span>'
+                                 : '<span style="color:var(--accent)">媒体</span>');
+    const title = c.model.indexOf(c.brand) >= 0 ? c.model : (c.brand+' '+c.model);
+    return '<div class="citem" data-id="'+c.id+'">'+
+      '<div class="cn">'+title+' '+c.trim+'</div>'+
+      '<div class="cd">离地 <b>'+c.h+'cm</b> · 轴距 '+c.L+'cm · '+c.size+' · '+tag+
+      (c.air ? (' · 空悬+'+c.air+'cm') : '')+'</div></div>';
+  }).join('');
+  cList.classList.add('show');
+  cList.querySelectorAll('.citem').forEach(it=>{
+    it.onclick = ()=>{
+      const c = CAR_DB.find(x=>x.id===it.dataset.id);
+      applyCar(c, false);
+      cInput.value = c.brand+' '+c.model+' '+c.trim;
+      cClear.style.display = 'block';
+      cList.classList.remove('show');
+    };
+  });
+}
+
+function pickCar(c){
+  applyCar(c, false);
+  cInput.value = c.brand+' '+c.model+' '+c.trim;
+  cClear.style.display = 'block';
+  cList.classList.remove('show');
+}
+
+function renderHots(){
+  const el = document.getElementById('hotCars');
+  el.innerHTML = CAR_DB.filter(c=>c.hot)
+    .map(c=>'<button data-id="'+c.id+'">'+c.model+'</button>').join('');
+  el.querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{ const c = CAR_DB.find(x=>x.id===b.dataset.id); if(c) pickCar(c); };
+  });
+}
+
+cInput.addEventListener('input', ()=>{
+  cClear.style.display = cInput.value ? 'block' : 'none';
+  renderList(cInput.value.trim());
+});
+cInput.addEventListener('focus', ()=>renderList(cInput.value.trim()));
+cClear.onclick = ()=>{
+  cInput.value=''; cClear.style.display='none'; cList.classList.remove('show');
+  curCar=null; renderCarCard();
+};
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.sbox')) cList.classList.remove('show');
+});
+
+document.getElementById('btnReset').onclick = ()=>{
+  P = Object.assign({}, DEF); calcRange(); rearX = startX;
+  const c = CAR_DB.find(x=>x.id==='seal08ev') || CAR_DB[0];
+  curCar = c; curLift = false; carDirty = false;
+  cInput.value = c.brand+' '+c.model+' '+c.trim;
+  cClear.style.display = 'block';
+  buildPanel(); scan(); draw(); updateVerdict(); renderCarCard();
+};
+window.addEventListener('resize', ()=>{ resize(); tvResize(); });
+
+//==================== 启动 ====================
+buildPanel(); scan(); updateVerdict();
+renderHots();
+document.getElementById('dbCount').textContent = CAR_DB.length;
+(function initCar(){
+  const c = CAR_DB.find(x=>x.id==='seal08ev') || CAR_DB[0];
+  curCar = c; curLift = false; carDirty = false;
+  cInput.value = c.brand+' '+c.model+' '+c.trim;
+  cClear.style.display = 'block';
+  renderCarCard();
+})();
+resize(); tvResize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
